@@ -1,0 +1,50 @@
+package com.storefront.controller;
+
+import com.storefront.dto.BundleDTO;
+import com.storefront.dto.StockIngestDTO;
+import com.storefront.model.Product;
+import com.storefront.service.InventoryService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/v1/inventory")
+public class InventoryController {
+
+    private final InventoryService inventoryService;
+
+    public InventoryController(InventoryService inventoryService) {
+        this.inventoryService = inventoryService;
+    }
+
+    @PostMapping("/products")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Product> createProduct(@RequestBody Product product) {
+        return ResponseEntity.ok(inventoryService.createProduct(product));
+    }
+
+    @GetMapping("/products")
+    public ResponseEntity<List<Product>> getAllProducts() {
+        return ResponseEntity.ok(inventoryService.getAllProducts());
+    }
+
+    @GetMapping("/view")
+    public ResponseEntity<?> getInventoryView() {
+        return ResponseEntity.ok(inventoryService.getInventoryView());
+    }
+
+    @PostMapping("/bundles")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> createBundle(@RequestBody BundleDTO bundleDTO) {
+        return ResponseEntity.ok(inventoryService.createBundle(bundleDTO));
+    }
+
+    @PostMapping("/stock")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> addStock(@RequestBody StockIngestDTO dto) {
+        return ResponseEntity.ok(inventoryService.addStock(dto.getSku(), dto.getQuantity()));
+    }
+}

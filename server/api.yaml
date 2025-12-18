@@ -1,0 +1,191 @@
+openapi: 3.0.3
+info:
+  title: StoreFront API
+  description: API for StoreFront Inventory and POS System
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local Dev Server
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # --- Core Entities ---
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+        sku:
+          type: string
+        name:
+          type: string
+        price:
+          type: number
+          format: float
+        type:
+          type: string
+          enum: [BOOK, STATIONERY, APPAREL, OTHER]
+        attributes:
+          type: object
+          additionalProperties: true
+          description: Flexible JSON attributes (e.g. author, isbn)
+    
+    Bundle:
+      type: object
+      properties:
+        id:
+          type: integer
+        sku:
+          type: string
+        name:
+          type: string
+        price:
+          type: number
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BundleItem'
+
+    BundleItem:
+      type: object
+      properties:
+        productId:
+          type: integer
+        productName:
+          type: string
+        quantity:
+          type: integer
+
+    # --- Order / POS ---
+    OrderRequest:
+      type: object
+      properties:
+        storeId:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItemRequest'
+
+    OrderItemRequest:
+      type: object
+      properties:
+        productId:
+          type: integer
+        bundleId:
+          type: integer
+          nullable: true
+        quantity:
+          type: integer
+        isExclusion:
+          type: boolean
+          default: false
+
+    OrderResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        totalAmount:
+          type: number
+        status:
+          type: string
+
+paths:
+  # --- Auth ---
+  /auth/login:
+    post:
+      summary: Login for Admin or Employee
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username: {type: string}
+                password: {type: string}
+      responses:
+        '200':
+          description: Returns JWT Token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: {type: string}
+                  role: {type: string}
+                  userId: {type: integer}
+
+  # --- Inventory / Products ---
+  /products:
+    get:
+      summary: Browse Master Catalog
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+    post:
+      summary: Add Product (Admin Only)
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Product'
+      responses:
+        '201':
+          description: Created
+
+  # --- Virtual Stores ---
+  /stores/my-inventory:
+    get:
+      summary: Get inventory for the logged-in user's virtual store
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of stock levels
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    productId: {type: integer}
+                    quantity: {type: integer}
+                    product:
+                      $ref: '#/components/schemas/Product'
+
+  # --- Orders ---
+  /orders:
+    post:
+      summary: Submit a Sale
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderRequest'
+      responses:
+        '201':
+          description: Order processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
