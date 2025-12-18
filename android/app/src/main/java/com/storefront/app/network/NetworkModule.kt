@@ -1,6 +1,5 @@
 package com.storefront.app.network
 
-import com.storefront.app.ConfigManager
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
