@@ -1,11 +1,13 @@
 package com.storefront.service;
 
-import com.storefront.dto.OrderItemRequestDTO;
-import com.storefront.dto.OrderRequestDTO;
+import com.storefront.dto.*;
 import com.storefront.model.*;
 import com.storefront.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.jpa.domain.Specification; // For filtering
+
+import jakarta.persistence.criteria.Predicate;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -23,11 +25,12 @@ public class OrderService {
     private final BundleRepository bundleRepository;
     private final BundleItemRepository bundleItemRepository;
     private final StockLevelRepository stockLevelRepository;
+    private final CustomerRepository customerRepository; // New dependency
 
     public OrderService(CustomerOrderRepository orderRepository, OrderLineRepository orderLineRepository,
             StoreRepository storeRepository, ProductRepository productRepository,
             BundleRepository bundleRepository, BundleItemRepository bundleItemRepository,
-            StockLevelRepository stockLevelRepository) {
+            StockLevelRepository stockLevelRepository, CustomerRepository customerRepository) {
         this.orderRepository = orderRepository;
         this.orderLineRepository = orderLineRepository;
         this.storeRepository = storeRepository;
@@ -35,6 +38,7 @@ public class OrderService {
         this.bundleRepository = bundleRepository;
         this.bundleItemRepository = bundleItemRepository;
         this.stockLevelRepository = stockLevelRepository;
+        this.customerRepository = customerRepository;
     }
 
     public CustomerOrder createOrder(OrderRequestDTO request, AppUser currentUser) {
@@ -99,6 +103,21 @@ public class OrderService {
 
         order.setTotalAmount(totalAmount);
         orderLineRepository.saveAll(lines);
+        // Handle Customer Linking
+        if (request.getCustomerPhone() != null && !request.getCustomerPhone().isEmpty()) {
+            Optional<Customer> existingCustomer = customerRepository.findByPhone(request.getCustomerPhone());
+            Customer customer;
+            if (existingCustomer.isPresent()) {
+                customer = existingCustomer.get();
+                // Optionally update name if changed? For now, we assume phone is the key
+                // identity.
+            } else {
+                customer = new Customer(request.getCustomerName(), request.getCustomerPhone());
+                customer = customerRepository.save(customer);
+            }
+            order.setCustomer(customer);
+        }
+
         return orderRepository.save(order);
     }
 
@@ -113,5 +132,26 @@ public class OrderService {
 
         stock.setQuantity(stock.getQuantity() - quantity);
         stockLevelRepository.save(stock);
+    }
+
+    public List<CustomerOrder> searchOrders(String customerName, String customerPhone) {
+        Specification<CustomerOrder> spec = Specification.where(null);
+
+        if (customerName != null && !customerName.isEmpty()) {
+            spec = spec.and((root, query, cb) -> {
+                Predicate p = cb.like(cb.lower(root.get("customer").get("name")),
+                        "%" + customerName.toLowerCase() + "%");
+                return p;
+            });
+        }
+
+        if (customerPhone != null && !customerPhone.isEmpty()) {
+            spec = spec.and((root, query, cb) -> {
+                Predicate p = cb.like(root.get("customer").get("phone"), "%" + customerPhone + "%");
+                return p;
+            });
+        }
+
+        return orderRepository.findAll(spec);
     }
 }

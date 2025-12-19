@@ -70,7 +70,7 @@ public class InventoryIntegrationTest {
     @Test
     void testInventoryFlow() throws Exception {
         // 1. Create Product (Admin) -> 200
-        Product product = new Product("SKU-INV-1", "BOOK", "Inventory Book", new BigDecimal("20.00"), "{}");
+        Product product = new Product("SKU-INV-1", "BOOK", "Inventory Book", new BigDecimal("20.00"), null);
         mockMvc.perform(post("/api/v1/inventory/products")
                 .header("Authorization", "Bearer " + adminToken)
                 .contentType(MediaType.APPLICATION_JSON)

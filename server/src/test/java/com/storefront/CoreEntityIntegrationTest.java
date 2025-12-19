@@ -44,7 +44,7 @@ public class CoreEntityIntegrationTest {
         assertNotNull(masterStore.getId());
 
         // 3. Create Product
-        Product book = new Product("ISBN-123", "BOOK", "Physics 101", new BigDecimal("50.00"), "{}");
+        Product book = new Product("ISBN-123", "BOOK", "Physics 101", new BigDecimal("50.00"), null);
         book = productRepository.save(book);
         assertNotNull(book.getId());
 

@@ -47,4 +47,12 @@ public class InventoryController {
     public ResponseEntity<?> addStock(@RequestBody StockIngestDTO dto) {
         return ResponseEntity.ok(inventoryService.addStock(dto.getSku(), dto.getQuantity()));
     }
+
+    @PostMapping("/ingest/isbn")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<?> ingestIsbn(@RequestBody java.util.Map<String, Object> payload) {
+        String isbn = (String) payload.get("isbn");
+        int quantity = (int) payload.getOrDefault("quantity", 1);
+        return ResponseEntity.ok(inventoryService.ingestBook(isbn, quantity));
+    }
 }

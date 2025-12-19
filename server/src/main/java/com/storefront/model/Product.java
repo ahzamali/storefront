@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import com.storefront.model.attributes.ProductAttributes;
 
 @Entity
 @Table(name = "product")
@@ -26,7 +27,8 @@ public class Product {
     private BigDecimal basePrice;
 
     @Column(columnDefinition = "json") // Basic support, might need Postgres dialect adjustments if using real JSONB
-    private String attributes; // Storing as JSON string for simplicity
+    @Convert(converter = JsonAttributeConverter.class)
+    private ProductAttributes attributes;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -35,7 +37,7 @@ public class Product {
     public Product() {
     }
 
-    public Product(String sku, String type, String name, BigDecimal basePrice, String attributes) {
+    public Product(String sku, String type, String name, BigDecimal basePrice, ProductAttributes attributes) {
         this.sku = sku;
         this.type = type;
         this.name = name;
@@ -79,11 +81,11 @@ public class Product {
         this.basePrice = basePrice;
     }
 
-    public String getAttributes() {
+    public ProductAttributes getAttributes() {
         return attributes;
     }
 
-    public void setAttributes(String attributes) {
+    public void setAttributes(ProductAttributes attributes) {
         this.attributes = attributes;
     }
 

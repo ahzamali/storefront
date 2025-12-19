@@ -23,6 +23,11 @@ public class CustomerOrder {
     @JoinColumn(name = "user_id")
     private AppUser processedBy;
 
+    @ManyToOne(optional = true) // Optional for now to support legacy orders without migration if needed, but
+                                // ideally should be false later
+    @JoinColumn(name = "customer_id")
+    private Customer customer;
+
     @Column(name = "total_amount", nullable = false)
     private BigDecimal totalAmount;
 
@@ -67,6 +72,14 @@ public class CustomerOrder {
 
     public void setProcessedBy(AppUser processedBy) {
         this.processedBy = processedBy;
+    }
+
+    public Customer getCustomer() {
+        return customer;
+    }
+
+    public void setCustomer(Customer customer) {
+        this.customer = customer;
     }
 
     public BigDecimal getTotalAmount() {

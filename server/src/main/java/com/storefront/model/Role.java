@@ -1,6 +1,8 @@
 package com.storefront.model;
 
 public enum Role {
-    ADMIN,
-    EMPLOYEE
+    SUPER_ADMIN,
+    STORE_ADMIN,
+    EMPLOYEE,
+    ADMIN // Deprecated alias
 }

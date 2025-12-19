@@ -31,4 +31,11 @@ public class OrderController {
         CustomerOrder order = orderService.createOrder(request, user);
         return ResponseEntity.ok(order);
     }
+
+    @GetMapping
+    public ResponseEntity<?> getOrders(
+            @RequestParam(required = false) String customerName,
+            @RequestParam(required = false) String customerPhone) {
+        return ResponseEntity.ok(orderService.searchOrders(customerName, customerPhone));
+    }
 }

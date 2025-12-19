@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
+import com.storefront.model.AppUser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -35,143 +36,159 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 public class StoreIntegrationTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-    @Autowired
-    private ObjectMapper objectMapper;
-    @Autowired
-    private AuthService authService;
-    @Autowired
-    private StoreRepository storeRepository;
-    @Autowired
-    private StockLevelRepository stockLevelRepository;
-    @Autowired
-    private InventoryService inventoryService;
-    @Autowired
-    private StoreService storeService;
+        @Autowired
+        private MockMvc mockMvc;
+        @Autowired
+        private ObjectMapper objectMapper;
+        @Autowired
+        private AuthService authService;
+        @Autowired
+        private StoreRepository storeRepository;
+        @Autowired
+        private StockLevelRepository stockLevelRepository;
+        @Autowired
+        private InventoryService inventoryService;
+        @Autowired
+        private StoreService storeService;
+        @Autowired
+        private com.storefront.repository.AppUserRepository appUserRepository;
 
-    private String adminToken;
-    private Store virtualStore;
-    private Store masterStore;
+        private String adminToken;
+        private Store virtualStore;
+        private Store masterStore;
 
-    @BeforeEach
-    void setup() {
-        if (storeRepository.findFirstByType(Store.StoreType.MASTER).isEmpty()) {
-            masterStore = storeRepository.save(new Store("Master Warehouse", Store.StoreType.MASTER, null));
-        } else {
-            masterStore = storeRepository.findFirstByType(Store.StoreType.MASTER).get();
+        @BeforeEach
+        void setup() {
+                if (storeRepository.findFirstByType(Store.StoreType.MASTER).isEmpty()) {
+                        masterStore = storeRepository.save(new Store("Master Warehouse", Store.StoreType.MASTER, null));
+                } else {
+                        masterStore = storeRepository.findFirstByType(Store.StoreType.MASTER).get();
+                }
+
+                // Create Admin
+                // Create Admin
+                if (appUserRepository.findByUsername("admin_store").isPresent()) {
+                        adminToken = authService.login("admin_store", "pass").map(u -> authService.generateToken(u))
+                                        .orElse("");
+                } else {
+                        var admin = authService.register("admin_store", "pass", Role.ADMIN);
+                        adminToken = authService.generateToken(admin);
+                }
+
+                // Setup Inventory
+                inventoryService.createProduct(
+                                new com.storefront.model.Product("SKU-BOOK-1", "BOOK", "Book 1", new BigDecimal("10"),
+                                                null));
+                inventoryService.createProduct(
+                                new com.storefront.model.Product("SKU-PEN-1", "STATIONERY", "Pen 1",
+                                                new BigDecimal("5"), null));
+
+                // Add Master Stock (100 Books, 100 Pens)
+                inventoryService.addStock("SKU-BOOK-1", 100);
+                inventoryService.addStock("SKU-PEN-1", 100);
         }
 
-        // Create Admin
-        try {
-            var admin = authService.register("admin_store", "pass", Role.ADMIN);
-            adminToken = authService.generateToken(admin);
-        } catch (Exception e) {
-            adminToken = authService.login("admin_store", "pass").map(u -> authService.generateToken(u)).orElse("");
+        @Test
+        void testAllocationAndReconciliation() throws Exception {
+                // 1. Create Virtual Store
+                MvcResult result = mockMvc.perform(post("/api/v1/stores")
+                                .header("Authorization", "Bearer " + adminToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(Collections.singletonMap("name", "PopUp 1"))))
+                                .andExpect(status().isOk())
+                                .andReturn();
+
+                String response = result.getResponse().getContentAsString();
+                Long storeId = objectMapper.readTree(response).get("id").asLong();
+
+                // 2. Allocate Stock (Single Product)
+                AllocationRequestDTO request = new AllocationRequestDTO();
+                StockAllocationDTO item = new StockAllocationDTO();
+                item.setSku("SKU-BOOK-1");
+                item.setQuantity(20);
+                request.setItems(List.of(item));
+
+                mockMvc.perform(post("/api/v1/stores/" + storeId + "/allocate")
+                                .header("Authorization", "Bearer " + adminToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                                .andExpect(status().isOk());
+
+                // Verify Stock
+                int masterQty = stockLevelRepository.findByStoreIdAndProductId(masterStore.getId(), inventoryService
+                                .getAllProducts().stream().filter(p -> p.getSku().equals("SKU-BOOK-1")).findFirst()
+                                .get().getId()).get()
+                                .getQuantity();
+                int virtualQty = stockLevelRepository.findByStoreIdAndProductId(storeId,
+                                inventoryService.getAllProducts()
+                                                .stream().filter(p -> p.getSku().equals("SKU-BOOK-1")).findFirst().get()
+                                                .getId())
+                                .get().getQuantity();
+
+                assertEquals(100, masterQty + virtualQty);
+                assertEquals(80, masterQty);
+                assertEquals(20, virtualQty);
+
+                // 3. Create Bundle and Allocate
+                // Bundle: 1 Book + 2 Pens
+                BundleDTO bundle = new BundleDTO();
+                bundle.setSku("BUN-SET-1");
+                bundle.setName("Set");
+                bundle.setPrice(new BigDecimal(15));
+                BundleDTO.BundleItemDTO bi1 = new BundleDTO.BundleItemDTO();
+                bi1.setProductSku("SKU-BOOK-1");
+                bi1.setQuantity(1);
+                BundleDTO.BundleItemDTO bi2 = new BundleDTO.BundleItemDTO();
+                bi2.setProductSku("SKU-PEN-1");
+                bi2.setQuantity(2);
+                bundle.setItems(List.of(bi1, bi2));
+                inventoryService.createBundle(bundle);
+
+                // Allocate 5 Bundles (Needs 5 Books, 10 Pens)
+                AllocationRequestDTO bunRequest = new AllocationRequestDTO();
+                StockAllocationDTO bunItem = new StockAllocationDTO();
+                bunItem.setSku("BUN-SET-1");
+                bunItem.setQuantity(5);
+                bunRequest.setItems(List.of(bunItem));
+
+                mockMvc.perform(post("/api/v1/stores/" + storeId + "/allocate")
+                                .header("Authorization", "Bearer " + adminToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(bunRequest)))
+                                .andExpect(status().isOk());
+
+                // Verify Stock Changes
+                // Master: Books (80 - 5 = 75), Pens (100 - 10 = 90)
+                // Virtual: Books (20 + 5 = 25), Pens (0 + 10 = 10)
+
+                var bookId = inventoryService.getAllProducts().stream().filter(p -> p.getSku().equals("SKU-BOOK-1"))
+                                .findFirst()
+                                .get().getId();
+                var penId = inventoryService.getAllProducts().stream().filter(p -> p.getSku().equals("SKU-PEN-1"))
+                                .findFirst()
+                                .get().getId();
+
+                assertEquals(75,
+                                stockLevelRepository.findByStoreIdAndProductId(masterStore.getId(), bookId).get()
+                                                .getQuantity());
+                assertEquals(90,
+                                stockLevelRepository.findByStoreIdAndProductId(masterStore.getId(), penId).get()
+                                                .getQuantity());
+                assertEquals(25, stockLevelRepository.findByStoreIdAndProductId(storeId, bookId).get().getQuantity());
+                assertEquals(10, stockLevelRepository.findByStoreIdAndProductId(storeId, penId).get().getQuantity());
+
+                // 4. Reconcile
+                mockMvc.perform(post("/api/v1/stores/" + storeId + "/reconcile")
+                                .header("Authorization", "Bearer " + adminToken))
+                                .andExpect(status().isOk());
+
+                // Verify all stock back in Master
+                assertEquals(100,
+                                stockLevelRepository.findByStoreIdAndProductId(masterStore.getId(), bookId).get()
+                                                .getQuantity());
+                assertEquals(100,
+                                stockLevelRepository.findByStoreIdAndProductId(masterStore.getId(), penId).get()
+                                                .getQuantity());
+                assertEquals(0, stockLevelRepository.findByStoreIdAndProductId(storeId, bookId).get().getQuantity());
         }
-
-        // Setup Inventory
-        inventoryService.createProduct(
-                new com.storefront.model.Product("SKU-BOOK-1", "BOOK", "Book 1", new BigDecimal("10"), "{}"));
-        inventoryService.createProduct(
-                new com.storefront.model.Product("SKU-PEN-1", "STATIONERY", "Pen 1", new BigDecimal("5"), "{}"));
-
-        // Add Master Stock (100 Books, 100 Pens)
-        inventoryService.addStock("SKU-BOOK-1", 100);
-        inventoryService.addStock("SKU-PEN-1", 100);
-    }
-
-    @Test
-    void testAllocationAndReconciliation() throws Exception {
-        // 1. Create Virtual Store
-        MvcResult result = mockMvc.perform(post("/api/v1/stores")
-                .header("Authorization", "Bearer " + adminToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(Collections.singletonMap("name", "PopUp 1"))))
-                .andExpect(status().isOk())
-                .andReturn();
-
-        String response = result.getResponse().getContentAsString();
-        Long storeId = objectMapper.readTree(response).get("id").asLong();
-
-        // 2. Allocate Stock (Single Product)
-        AllocationRequestDTO request = new AllocationRequestDTO();
-        StockAllocationDTO item = new StockAllocationDTO();
-        item.setSku("SKU-BOOK-1");
-        item.setQuantity(20);
-        request.setItems(List.of(item));
-
-        mockMvc.perform(post("/api/v1/stores/" + storeId + "/allocate")
-                .header("Authorization", "Bearer " + adminToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk());
-
-        // Verify Stock
-        int masterQty = stockLevelRepository.findByStoreIdAndProductId(masterStore.getId(), inventoryService
-                .getAllProducts().stream().filter(p -> p.getSku().equals("SKU-BOOK-1")).findFirst().get().getId()).get()
-                .getQuantity();
-        int virtualQty = stockLevelRepository.findByStoreIdAndProductId(storeId, inventoryService.getAllProducts()
-                .stream().filter(p -> p.getSku().equals("SKU-BOOK-1")).findFirst().get().getId()).get().getQuantity();
-
-        assertEquals(100, masterQty + virtualQty);
-        assertEquals(80, masterQty);
-        assertEquals(20, virtualQty);
-
-        // 3. Create Bundle and Allocate
-        // Bundle: 1 Book + 2 Pens
-        BundleDTO bundle = new BundleDTO();
-        bundle.setSku("BUN-SET-1");
-        bundle.setName("Set");
-        bundle.setPrice(new BigDecimal(15));
-        BundleDTO.BundleItemDTO bi1 = new BundleDTO.BundleItemDTO();
-        bi1.setProductSku("SKU-BOOK-1");
-        bi1.setQuantity(1);
-        BundleDTO.BundleItemDTO bi2 = new BundleDTO.BundleItemDTO();
-        bi2.setProductSku("SKU-PEN-1");
-        bi2.setQuantity(2);
-        bundle.setItems(List.of(bi1, bi2));
-        inventoryService.createBundle(bundle);
-
-        // Allocate 5 Bundles (Needs 5 Books, 10 Pens)
-        AllocationRequestDTO bunRequest = new AllocationRequestDTO();
-        StockAllocationDTO bunItem = new StockAllocationDTO();
-        bunItem.setSku("BUN-SET-1");
-        bunItem.setQuantity(5);
-        bunRequest.setItems(List.of(bunItem));
-
-        mockMvc.perform(post("/api/v1/stores/" + storeId + "/allocate")
-                .header("Authorization", "Bearer " + adminToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(bunRequest)))
-                .andExpect(status().isOk());
-
-        // Verify Stock Changes
-        // Master: Books (80 - 5 = 75), Pens (100 - 10 = 90)
-        // Virtual: Books (20 + 5 = 25), Pens (0 + 10 = 10)
-
-        var bookId = inventoryService.getAllProducts().stream().filter(p -> p.getSku().equals("SKU-BOOK-1")).findFirst()
-                .get().getId();
-        var penId = inventoryService.getAllProducts().stream().filter(p -> p.getSku().equals("SKU-PEN-1")).findFirst()
-                .get().getId();
-
-        assertEquals(75,
-                stockLevelRepository.findByStoreIdAndProductId(masterStore.getId(), bookId).get().getQuantity());
-        assertEquals(90,
-                stockLevelRepository.findByStoreIdAndProductId(masterStore.getId(), penId).get().getQuantity());
-        assertEquals(25, stockLevelRepository.findByStoreIdAndProductId(storeId, bookId).get().getQuantity());
-        assertEquals(10, stockLevelRepository.findByStoreIdAndProductId(storeId, penId).get().getQuantity());
-
-        // 4. Reconcile
-        mockMvc.perform(post("/api/v1/stores/" + storeId + "/reconcile")
-                .header("Authorization", "Bearer " + adminToken))
-                .andExpect(status().isOk());
-
-        // Verify all stock back in Master
-        assertEquals(100,
-                stockLevelRepository.findByStoreIdAndProductId(masterStore.getId(), bookId).get().getQuantity());
-        assertEquals(100,
-                stockLevelRepository.findByStoreIdAndProductId(masterStore.getId(), penId).get().getQuantity());
-        assertEquals(0, stockLevelRepository.findByStoreIdAndProductId(storeId, bookId).get().getQuantity());
-    }
 }

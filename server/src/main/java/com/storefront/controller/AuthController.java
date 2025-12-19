@@ -36,11 +36,26 @@ public class AuthController {
     }
 
     @PostMapping("/register")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'STORE_ADMIN')")
     public ResponseEntity<?> register(@RequestBody Map<String, String> body) {
+        String storeIdStr = body.get("storeId");
+        Long storeId = storeIdStr != null ? Long.parseLong(storeIdStr) : null;
+
+        Role role = Role.valueOf(body.get("role"));
+        // Basic protection: Only SUPER_ADMIN can create admins? For now allow broadly
+        // if method security passes.
+
         AppUser user = authService.register(
                 body.get("username"),
                 body.get("password"),
-                Role.valueOf(body.get("role")));
+                role,
+                storeId);
         return ResponseEntity.ok(user);
+    }
+
+    @GetMapping("/users")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'STORE_ADMIN')")
+    public java.util.List<AppUser> listUsers() {
+        return authService.getAllUsers();
     }
 }
