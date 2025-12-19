@@ -83,7 +83,7 @@ class CartViewModel : ViewModel() {
                 }
                 
                 val orderRequest = mapOf(
-                    "storeId" to 1, // TODO: Get from settings
+                    "storeId" to configManager.selectedStoreId,
                     "items" to itemsPayload
                 )
 

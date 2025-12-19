@@ -10,6 +10,7 @@ class ConfigManager(context: Context) {
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_AUTH_TOKEN = "auth_token"
         private const val KEY_SERVER_HISTORY = "server_history"
+        private const val KEY_SELECTED_STORE_ID = "selected_store_id"
     }
 
     var baseUrl: String?
@@ -25,6 +26,10 @@ class ConfigManager(context: Context) {
         get() = prefs.getString(KEY_AUTH_TOKEN, null)
         set(value) = prefs.edit().putString(KEY_AUTH_TOKEN, value).apply()
 
+    var selectedStoreId: Long
+        get() = prefs.getLong(KEY_SELECTED_STORE_ID, -1L).takeIf { it != -1L } ?: -1L
+        set(value) = prefs.edit().putLong(KEY_SELECTED_STORE_ID, value).apply()
+
     val serverHistory: Set<String>
         get() = prefs.getStringSet(KEY_SERVER_HISTORY, emptySet()) ?: emptySet()
 
@@ -35,6 +40,6 @@ class ConfigManager(context: Context) {
     }
     
     fun clearAuth() {
-        prefs.edit().remove(KEY_AUTH_TOKEN).apply()
+        prefs.edit().remove(KEY_AUTH_TOKEN).remove(KEY_SELECTED_STORE_ID).apply()
     }
 }

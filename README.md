@@ -22,6 +22,21 @@ The system is built as a monorepo containing three distinct components:
 - **Virtual Stores**: Allocate stock to temporary locations for events/pop-ups.
 - **Bundle Sales**: Sell product bundles with flexible exclusions.
 
+## 📡 API Reference
+
+### Orders
+- **Create Order**: `POST /api/v1/orders`
+  - Body: `{ "storeId": 1, "items": [...], "customerName": "John", "customerPhone": "123" }`
+- **Search Orders**: `GET /api/v1/orders`
+  - Query Params:
+    - `customerName`: Partial case-insensitive match.
+    - `customerPhone`: Partial match.
+
+### Inventory
+- **Search Store Inventory**: `GET /api/v1/stores/{storeId}/inventory`
+  - Query Params:
+    - `search`: Matches Product Name OR ISBN (inside JSON attributes).
+
 ## 🛠 Prerequisites
 
 - **Java**: JDK 17 or higher.

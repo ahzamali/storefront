@@ -14,6 +14,9 @@ interface ApiService {
 
     @GET("/api/v1/inventory/products")
     suspend fun getProducts(@Header("Authorization") token: String): List<Map<String, Any>>
+
+    @GET("/api/v1/stores")
+    suspend fun getStores(@Header("Authorization") token: String): List<Map<String, Any>>
     
     // We can define DTOs data classes later if needed, but Maps are quick for now to avoid duplications across platforms
     // Ideally we should share data models or recreate them. I will assume we use Maps/native objects for simplicity unless complex.

@@ -1,13 +1,11 @@
 package com.storefront.app.ui
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,7 +16,6 @@ import androidx.lifecycle.lifecycleScope
 import com.storefront.app.ConfigManager
 import com.storefront.app.network.NetworkModule
 import kotlinx.coroutines.launch
-import retrofit2.HttpException
 
 class LoginActivity : ComponentActivity() {
 
@@ -113,7 +110,8 @@ class LoginActivity : ComponentActivity() {
                          Toast.makeText(this@LoginActivity, "Please enter Server URL", Toast.LENGTH_SHORT).show()
                          return@Button
                     }
-                    performLogin(serverUrl, username, password) 
+                    isLoading = true
+                    performLogin(serverUrl, username, password) { isLoading = false }
                 },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading
@@ -127,30 +125,29 @@ class LoginActivity : ComponentActivity() {
         }
     }
 
-    private fun performLogin(url: String, user: String, pass: String) {
+    private fun performLogin(url: String, user: String, pass: String, onComplete: () -> Unit) {
         lifecycleScope.launch {
             try {
                 val api = NetworkModule.createApiService(url)
                 val response = api.login(mapOf("username" to user, "password" to pass))
                 
-                // Success
-                val token = response["token"] as? String // Assuming map return
-                // Or if we check status.
+                val token = response["token"] as? String 
                 
                 if (token != null) {
-                    configManager.baseUrl = url // Saves history too
+                    configManager.baseUrl = url 
                     configManager.authToken = token
                     Toast.makeText(this@LoginActivity, "Login Successful", Toast.LENGTH_SHORT).show()
                     
-                    // Navigate to Dashboard (TODO: Create DashboardActivity)
-                    // startActivity(Intent(this@LoginActivity, DashboardActivity::class.java))
-                    // finish()
+                    startActivity(Intent(this@LoginActivity, StoreSelectionActivity::class.java))
+                    finish()
                 } else {
                     Toast.makeText(this@LoginActivity, "Login Failed: No Token", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
                 Toast.makeText(this@LoginActivity, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+            } finally {
+                onComplete()
             }
         }
     }
