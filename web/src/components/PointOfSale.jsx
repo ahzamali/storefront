@@ -1,18 +1,27 @@
 import { useState, useEffect } from 'react';
 import { getAllStores, getStoreInventory, getBundles, createOrder } from '../services/api';
+import useInventoryFilter from '../hooks/useInventoryFilter';
 
 const PointOfSale = ({ userId, userRole, userStoreIds }) => {
     const [stores, setStores] = useState([]);
     const [selectedStoreId, setSelectedStoreId] = useState(null);
     const [inventory, setInventory] = useState([]);
     const [bundles, setBundles] = useState([]);
-    const [searchQuery, setSearchQuery] = useState('');
     const [cart, setCart] = useState([]);
     const [customer, setCustomer] = useState({ name: '', phone: '' });
     const [view, setView] = useState('selection'); // 'selection' | 'verify'
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [loading, setLoading] = useState(false);
+
+    // Use shared hook for filtering and column management
+    const {
+        searchQuery, setSearchQuery,
+        searchField, setSearchField,
+        visibleColumns, toggleColumn,
+        isColumnSelectorOpen, setIsColumnSelectorOpen,
+        filteredItems: filteredInventory
+    } = useInventoryFilter(inventory);
 
     // Load stores on mount
     useEffect(() => {
@@ -23,9 +32,11 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
     // Load inventory when store selection changes
     useEffect(() => {
         if (selectedStoreId) {
-            loadInventory(selectedStoreId, searchQuery);
+            loadInventory(selectedStoreId);
+        } else {
+            setInventory([]);
         }
-    }, [selectedStoreId, searchQuery]);
+    }, [selectedStoreId]);
 
     const loadStores = async () => {
         try {
@@ -55,10 +66,11 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
         }
     };
 
-    const loadInventory = async (storeId, search = '') => {
+    const loadInventory = async (storeId) => {
         try {
             setLoading(true);
-            const stockLevels = await getStoreInventory(storeId, search);
+            // Load ALL inventory for client-side filtering
+            const stockLevels = await getStoreInventory(storeId, "");
             setInventory(stockLevels);
         } catch (err) {
             setError('Failed to load inventory: ' + err.message);
@@ -76,48 +88,49 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
         }
     };
 
-    const addToCart = (stockLevel) => {
-        const product = stockLevel.product;
-        const newCart = [...cart];
+    const addToCart = (item, isBundle = false) => {
+        const product = isBundle ? null : item.product;
+        const bundle = isBundle ? item : null;
+        const sku = isBundle ? `BUNDLE-${bundle.id}` : product.sku;
 
-        const existing = newCart.find(i => i.sku === product.sku);
+        const newCart = [...cart];
+        const existing = newCart.find(i => i.sku === sku);
+
+        // Check stock availability
+        const availableStock = isBundle ? Infinity : item.quantity;
+
         if (existing) {
-            if (existing.quantity < stockLevel.quantity) {
-                existing.quantity += 1;
-            } else {
-                setError(`Only ${stockLevel.quantity} units available`);
+            // For bundles, we might not track stock strictly here, or we'd need to check components
+            if (!isBundle && existing.quantity >= availableStock) {
+                setError(`Only ${availableStock} units available`);
                 return;
             }
+            existing.quantity += 1;
         } else {
-            if (stockLevel.quantity > 0) {
-                newCart.push({ ...product, quantity: 1, availableStock: stockLevel.quantity });
-            } else {
+            if (!isBundle && availableStock <= 0) {
                 setError('Product out of stock');
                 return;
             }
+
+            newCart.push({
+                sku: sku,
+                name: isBundle ? bundle.name : product.name,
+                basePrice: isBundle ? bundle.discountPrice : product.basePrice,
+                quantity: 1,
+                product: product,
+                bundle: bundle,
+                isBundle: isBundle
+            });
         }
         setCart(newCart);
         setError('');
     };
 
+    // Helper for bundle quick add
     const addBundleToCart = (bundle) => {
-        const newCart = [...cart];
+        addToCart(bundle, true);
+    }
 
-        bundle.items.forEach(bundleItem => {
-            const stockLevel = inventory.find(s => s.product.sku === bundleItem.productSku);
-            if (stockLevel && stockLevel.product) {
-                const product = stockLevel.product;
-                const existing = newCart.find(i => i.sku === product.sku);
-                if (existing) {
-                    existing.quantity += bundleItem.quantity;
-                } else {
-                    newCart.push({ ...product, quantity: bundleItem.quantity, availableStock: stockLevel.quantity });
-                }
-            }
-        });
-
-        setCart(newCart);
-    };
 
     const removeFromCart = (sku) => {
         setCart(cart.filter(i => i.sku !== sku));
@@ -146,11 +159,17 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
 
     const handleSubmit = async () => {
         try {
+            const orderItems = cart.map(item => ({
+                sku: item.isBundle ? null : item.product.sku,
+                bundleId: item.isBundle ? item.bundle.id : null,
+                quantity: item.quantity
+            }));
+
             const orderPayload = {
                 storeId: selectedStoreId,
                 customerName: customer.name,
                 customerPhone: customer.phone,
-                items: cart.map(i => ({ sku: i.sku, quantity: i.quantity }))
+                items: orderItems
             };
 
             await createOrder(orderPayload);
@@ -161,10 +180,27 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
             setTimeout(() => setSuccess(''), 3000);
 
             // Reload inventory to reflect updated stock
-            loadInventory(selectedStoreId, searchQuery);
+            loadInventory(selectedStoreId);
         } catch (err) {
             setError('Failed to create order: ' + (err.response?.data?.message || err.message));
             setView('selection');
+        }
+    };
+
+    // Helper to render product cells based on visibility
+    const renderProductCell = (product, col) => {
+        if (!product) return '-';
+        switch (col) {
+            case 'sku': return product.sku;
+            case 'name': return product.name;
+            case 'price': return `₹${product.basePrice}`;
+            case 'type': return product.type || 'PRODUCT';
+            case 'author': return product.attributes?.author || '-';
+            case 'isbn': return product.attributes?.isbn || '-';
+            case 'brand': return product.attributes?.brand || '-';
+            case 'hardness': return product.attributes?.hardness || '-';
+            case 'stock': return null; // Handled separately
+            default: return null;
         }
     };
 
@@ -218,15 +254,31 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
                         ))}
                     </select>
                 </div>
-                <div style={{ flex: 1 }}>
+
+                {/* Enhanced Search Bar */}
+                <div style={{ flex: 2, display: 'flex', flexDirection: 'column' }}>
                     <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Search Inventory:</label>
-                    <input
-                        type="text"
-                        placeholder="Search by name, SKU..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
-                    />
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        <select
+                            value={searchField}
+                            onChange={e => setSearchField(e.target.value)}
+                            style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd', width: '120px' }}
+                        >
+                            <option value="all">All Fields</option>
+                            <option value="name">Name</option>
+                            <option value="sku">SKU</option>
+                            <option value="author">Author</option>
+                            <option value="isbn">ISBN</option>
+                            <option value="brand">Brand</option>
+                        </select>
+                        <input
+                            type="text"
+                            placeholder="Search..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            style={{ flex: 1, padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -234,39 +286,91 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
             {success && <div style={{ color: '#27ae60', background: '#d5f4e6', padding: '1rem', borderRadius: '4px' }}>{success}</div>}
 
             <div style={{ display: 'flex', gap: '1rem', flex: 1, overflow: 'hidden' }}>
-                {/* Left: Inventory Table */}
+                {/* Left: Inventory Table with Dynamic Columns */}
                 <div style={{ flex: 2, background: 'white', borderRadius: '8px', padding: '1rem', display: 'flex', flexDirection: 'column' }}>
-                    <h3>Available Inventory</h3>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                        <h3>Available Inventory</h3>
+                    </div>
 
                     {loading && <p>Loading...</p>}
 
                     {!selectedStoreId && <p style={{ color: '#7f8c8d' }}>Please select a store to view inventory</p>}
 
-                    {selectedStoreId && inventory.length === 0 && !loading && (
-                        <p style={{ color: '#7f8c8d' }}>No inventory found{searchQuery && ' for this search'}</p>
+                    {selectedStoreId && filteredInventory.length === 0 && !loading && (
+                        <p style={{ color: '#7f8c8d' }}>No inventory found.</p>
                     )}
 
-                    {selectedStoreId && inventory.length > 0 && (
+                    {selectedStoreId && filteredInventory.length > 0 && (
                         <div style={{ flex: 1, overflowY: 'auto' }}>
                             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                <thead style={{ position: 'sticky', top: 0, background: '#ecf0f1' }}>
+                                <thead style={{ position: 'sticky', top: 0, background: '#ecf0f1', zIndex: 1 }}>
                                     <tr>
-                                        <th style={{ padding: '10px', textAlign: 'left', borderBottom: '2px solid #bdc3c7' }}>SKU</th>
-                                        <th style={{ padding: '10px', textAlign: 'left', borderBottom: '2px solid #bdc3c7' }}>Product Name</th>
-                                        <th style={{ padding: '10px', textAlign: 'right', borderBottom: '2px solid #bdc3c7' }}>Price</th>
-                                        <th style={{ padding: '10px', textAlign: 'right', borderBottom: '2px solid #bdc3c7' }}>Stock</th>
-                                        <th style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid #bdc3c7' }}>Action</th>
+                                        {/* Dynamic Headers */}
+                                        {Object.keys(visibleColumns).map(col => visibleColumns[col] && (
+                                            <th key={col} style={{ padding: '10px', textAlign: col === 'price' || col === 'stock' ? 'right' : 'left', borderBottom: '2px solid #bdc3c7' }}>
+                                                {col.charAt(0).toUpperCase() + col.slice(1)}
+                                            </th>
+                                        ))}
+
+                                        <th style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid #bdc3c7', position: 'relative' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+                                                Action
+                                                <button
+                                                    onClick={() => setIsColumnSelectorOpen(!isColumnSelectorOpen)}
+                                                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', padding: '0' }}
+                                                    title="Select Columns"
+                                                >
+                                                    ⚙️
+                                                </button>
+                                            </div>
+                                            {isColumnSelectorOpen && (
+                                                <div style={{
+                                                    position: 'absolute',
+                                                    right: 0,
+                                                    top: '100%',
+                                                    background: 'white',
+                                                    border: '1px solid #ddd',
+                                                    borderRadius: '8px',
+                                                    padding: '10px',
+                                                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                                                    zIndex: 100, // High z-index to float over table
+                                                    width: '200px',
+                                                    textAlign: 'left',
+                                                    color: 'black',
+                                                    fontWeight: 'normal'
+                                                }}>
+                                                    <div style={{ fontWeight: 'bold', marginBottom: '8px', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>Columns</div>
+                                                    {Object.keys(visibleColumns).map(col => (
+                                                        <label key={col} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0', cursor: 'pointer' }}>
+                                                            <input type="checkbox" checked={visibleColumns[col]} onChange={() => toggleColumn(col)} />
+                                                            {col.charAt(0).toUpperCase() + col.slice(1)}
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {inventory.map(stockLevel => (
+                                    {filteredInventory.map(stockLevel => (
                                         <tr key={stockLevel.product.sku} style={{ borderBottom: '1px solid #ecf0f1' }}>
-                                            <td style={{ padding: '10px' }}>{stockLevel.product.sku}</td>
-                                            <td style={{ padding: '10px' }}>{stockLevel.product.name}</td>
-                                            <td style={{ padding: '10px', textAlign: 'right' }}>₹{stockLevel.product.basePrice}</td>
-                                            <td style={{ padding: '10px', textAlign: 'right', color: stockLevel.quantity > 0 ? '#27ae60' : '#e74c3c' }}>
-                                                {stockLevel.quantity}
-                                            </td>
+
+                                            {Object.keys(visibleColumns).map(col => {
+                                                if (!visibleColumns[col]) return null;
+                                                if (col === 'stock') {
+                                                    return (
+                                                        <td key={col} style={{ padding: '10px', textAlign: 'right', color: stockLevel.quantity > 0 ? '#27ae60' : '#e74c3c' }}>
+                                                            {stockLevel.quantity}
+                                                        </td>
+                                                    );
+                                                }
+                                                return (
+                                                    <td key={col} style={{ padding: '10px', textAlign: col === 'price' ? 'right' : 'left' }}>
+                                                        {renderProductCell(stockLevel.product, col)}
+                                                    </td>
+                                                );
+                                            })}
+
                                             <td style={{ padding: '10px', textAlign: 'center' }}>
                                                 <button
                                                     onClick={() => addToCart(stockLevel)}
@@ -341,8 +445,9 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
                         {cart.map(item => (
                             <div key={item.sku} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', alignItems: 'center' }}>
                                 <div>
-                                    <div>{item.name}</div>
+                                    <div style={{ fontWeight: 'bold' }}>{item.name}</div>
                                     <div style={{ fontSize: '0.8rem', color: '#95a5a6' }}>₹{item.basePrice} x {item.quantity}</div>
+                                    {item.isBundle && <span style={{ fontSize: '0.7em', color: 'purple', marginLeft: '5px' }}>(Bundle)</span>}
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                     <span>₹{(item.basePrice * item.quantity).toFixed(2)}</span>

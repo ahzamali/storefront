@@ -1,18 +1,21 @@
 import { useState, useEffect } from 'react';
 import { getInventoryView, addProduct, addStock } from '../services/api';
+import useInventoryFilter from '../hooks/useInventoryFilter';
 
 const InventoryManager = () => {
     const [products, setProducts] = useState([]);
     const [newProduct, setNewProduct] = useState({ sku: '', name: '', type: 'BOOK', basePrice: '', attributes: {} });
     const [stock, setStock] = useState({ sku: '', quantity: '' });
     const [message, setMessage] = useState('');
-    const [visibleColumns, setVisibleColumns] = useState({
-        sku: true, name: true, price: true, type: true, stock: true,
-        author: false, isbn: false, brand: false, hardness: false
-    });
-    const [searchQuery, setSearchQuery] = useState('');
-    const [searchField, setSearchField] = useState('all');
-    const [isColumnSelectorOpen, setIsColumnSelectorOpen] = useState(false);
+
+    // Use shared hook for filtering and column management
+    const {
+        searchQuery, setSearchQuery,
+        searchField, setSearchField,
+        visibleColumns, toggleColumn,
+        isColumnSelectorOpen, setIsColumnSelectorOpen,
+        filteredItems: filteredProducts
+    } = useInventoryFilter(products);
 
     useEffect(() => {
         loadProducts();
@@ -59,25 +62,7 @@ const InventoryManager = () => {
         }
     };
 
-    const toggleColumn = (col) => {
-        setVisibleColumns(prev => ({ ...prev, [col]: !prev[col] }));
-    };
 
-    const filteredProducts = products.filter(p => {
-        const term = searchQuery.toLowerCase();
-        if (!term) return true;
-
-        if (searchField === 'all') {
-            return p.name.toLowerCase().includes(term) || p.sku.toLowerCase().includes(term);
-        } else if (searchField === 'name') {
-            return p.name.toLowerCase().includes(term);
-        } else if (searchField === 'sku') {
-            return p.sku.toLowerCase().includes(term);
-        } else {
-            // Check attributes
-            return p.attributes?.[searchField]?.toLowerCase()?.includes(term);
-        }
-    });
 
     return (
         <div>
