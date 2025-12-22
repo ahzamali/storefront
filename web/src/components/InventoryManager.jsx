@@ -3,9 +3,16 @@ import { getInventoryView, addProduct, addStock } from '../services/api';
 
 const InventoryManager = () => {
     const [products, setProducts] = useState([]);
-    const [newProduct, setNewProduct] = useState({ sku: '', name: '', type: 'BOOK', basePrice: '' });
+    const [newProduct, setNewProduct] = useState({ sku: '', name: '', type: 'BOOK', basePrice: '', attributes: {} });
     const [stock, setStock] = useState({ sku: '', quantity: '' });
     const [message, setMessage] = useState('');
+    const [visibleColumns, setVisibleColumns] = useState({
+        sku: true, name: true, price: true, type: true, stock: true,
+        author: false, isbn: false, brand: false, hardness: false
+    });
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchField, setSearchField] = useState('all');
+    const [isColumnSelectorOpen, setIsColumnSelectorOpen] = useState(false);
 
     useEffect(() => {
         loadProducts();
@@ -23,9 +30,17 @@ const InventoryManager = () => {
     const handleAddProduct = async (e) => {
         e.preventDefault();
         try {
-            await addProduct(newProduct);
+            // Map FRONTEND type to BACKEND type if needed
+            // Backend expects 'BOOK', 'PENCIL' (for stationery), 'APPAREL'
+            // Frontend 'STATIONERY' maps to 'PENCIL'
+            const payload = { ...newProduct };
+            if (payload.type === 'STATIONERY') {
+                payload.type = 'PENCIL'; // Internal backend mapping
+            }
+
+            await addProduct(payload);
             setMessage('Product created successfully');
-            setNewProduct({ sku: '', name: '', type: 'BOOK', basePrice: '' });
+            setNewProduct({ sku: '', name: '', type: 'BOOK', basePrice: '', attributes: {} });
             loadProducts();
         } catch (err) {
             setMessage('Failed to create product');
@@ -44,6 +59,26 @@ const InventoryManager = () => {
         }
     };
 
+    const toggleColumn = (col) => {
+        setVisibleColumns(prev => ({ ...prev, [col]: !prev[col] }));
+    };
+
+    const filteredProducts = products.filter(p => {
+        const term = searchQuery.toLowerCase();
+        if (!term) return true;
+
+        if (searchField === 'all') {
+            return p.name.toLowerCase().includes(term) || p.sku.toLowerCase().includes(term);
+        } else if (searchField === 'name') {
+            return p.name.toLowerCase().includes(term);
+        } else if (searchField === 'sku') {
+            return p.sku.toLowerCase().includes(term);
+        } else {
+            // Check attributes
+            return p.attributes?.[searchField]?.toLowerCase()?.includes(term);
+        }
+    });
+
     return (
         <div>
             <h2>Inventory Management (Headquarters)</h2>
@@ -56,11 +91,30 @@ const InventoryManager = () => {
                     <form onSubmit={handleAddProduct} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '1rem' }}>
                         <input type="text" placeholder="SKU" value={newProduct.sku} onChange={e => setNewProduct({ ...newProduct, sku: e.target.value })} required style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
                         <input type="text" placeholder="Name" value={newProduct.name} onChange={e => setNewProduct({ ...newProduct, name: e.target.value })} required style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                        <select value={newProduct.type} onChange={e => setNewProduct({ ...newProduct, type: e.target.value })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}>
+                        <select value={newProduct.type} onChange={e => setNewProduct({ ...newProduct, type: e.target.value, attributes: {} })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}>
                             <option value="BOOK">Book</option>
                             <option value="STATIONERY">Stationery</option>
                         </select>
                         <input type="number" placeholder="Base Price" value={newProduct.basePrice} onChange={e => setNewProduct({ ...newProduct, basePrice: e.target.value })} required step="0.01" style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+
+                        {/* Dynamic Attributes */}
+                        {newProduct.type === 'BOOK' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#f8f9fa', padding: '10px', borderRadius: '4px' }}>
+                                <h4>Book Details</h4>
+                                <input type="text" placeholder="Author" value={newProduct.attributes.author || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, author: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                                <input type="text" placeholder="ISBN" value={newProduct.attributes.isbn || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, isbn: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                                <input type="text" placeholder="Publisher" value={newProduct.attributes.publisher || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, publisher: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                            </div>
+                        )}
+                        {newProduct.type === 'STATIONERY' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#f8f9fa', padding: '10px', borderRadius: '4px' }}>
+                                <h4>Stationery Details</h4>
+                                <input type="text" placeholder="Brand" value={newProduct.attributes.brand || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, brand: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                                <input type="text" placeholder="Hardness (e.g. HB)" value={newProduct.attributes.hardness || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, hardness: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                                <input type="text" placeholder="Material" value={newProduct.attributes.material || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, material: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                            </div>
+                        )}
+
                         <button type="submit" style={{ padding: '10px', background: '#3498db', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Create Product</button>
                     </form>
                 </div>
@@ -76,27 +130,96 @@ const InventoryManager = () => {
                 </div>
             </div>
 
+            {/* Search Bar */}
+            <div style={{ marginBottom: '1rem', background: 'white', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center' }}>
+                <select
+                    value={searchField}
+                    onChange={e => setSearchField(e.target.value)}
+                    style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd', marginRight: '10px' }}
+                >
+                    <option value="all">All</option>
+                    <option value="name">Name</option>
+                    <option value="sku">SKU</option>
+                    <option value="author">Author</option>
+                    <option value="isbn">ISBN</option>
+                    <option value="brand">Brand</option>
+                </select>
+                <input
+                    type="text"
+                    placeholder="Search..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd', width: '300px' }}
+                />
+            </div>
+
             <div style={{ marginTop: '1rem', background: 'white', padding: '1rem', borderRadius: '8px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                         <tr style={{ background: '#f8f9fa', userSelect: 'none' }}>
-                            <th style={{ padding: '12px', textAlign: 'left' }}>SKU</th>
-                            <th style={{ padding: '12px', textAlign: 'left' }}>Name</th>
-                            <th style={{ padding: '12px', textAlign: 'left' }}>Price</th>
-                            <th style={{ padding: '12px', textAlign: 'left' }}>Type</th>
-                            <th style={{ padding: '12px', textAlign: 'left' }}>Stock</th>
+                            {visibleColumns.sku && <th style={{ padding: '12px', textAlign: 'left' }}>SKU</th>}
+                            {visibleColumns.name && <th style={{ padding: '12px', textAlign: 'left' }}>Name</th>}
+                            {visibleColumns.price && <th style={{ padding: '12px', textAlign: 'left' }}>Price</th>}
+                            {visibleColumns.type && <th style={{ padding: '12px', textAlign: 'left' }}>Type</th>}
+
+                            {visibleColumns.author && <th style={{ padding: '12px', textAlign: 'left' }}>Author</th>}
+                            {visibleColumns.isbn && <th style={{ padding: '12px', textAlign: 'left' }}>ISBN</th>}
+                            {visibleColumns.brand && <th style={{ padding: '12px', textAlign: 'left' }}>Brand</th>}
+                            {visibleColumns.hardness && <th style={{ padding: '12px', textAlign: 'left' }}>Hardness</th>}
+
+                            {visibleColumns.stock && <th style={{ padding: '12px', textAlign: 'left' }}>Stock</th>}
+
+                            {/* Column Selection Header */}
+                            <th style={{ padding: '12px', textAlign: 'right', position: 'relative' }}>
+                                <button
+                                    onClick={() => setIsColumnSelectorOpen(!isColumnSelectorOpen)}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}
+                                >
+                                    ⚙️
+                                </button>
+                                {isColumnSelectorOpen && (
+                                    <div style={{
+                                        position: 'absolute',
+                                        right: 0,
+                                        top: '100%',
+                                        background: 'white',
+                                        border: '1px solid #ddd',
+                                        borderRadius: '8px',
+                                        padding: '10px',
+                                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                                        zIndex: 10,
+                                        width: '200px',
+                                        textAlign: 'left'
+                                    }}>
+                                        <div style={{ fontWeight: 'bold', marginBottom: '8px', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>Columns</div>
+                                        {Object.keys(visibleColumns).map(col => (
+                                            <label key={col} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0', cursor: 'pointer' }}>
+                                                <input type="checkbox" checked={visibleColumns[col]} onChange={() => toggleColumn(col)} />
+                                                {col.charAt(0).toUpperCase() + col.slice(1)}
+                                            </label>
+                                        ))}
+                                    </div>
+                                )}
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
-                        {products.map(p => (
+                        {filteredProducts.map(p => (
                             <tr key={p.id} style={{ borderBottom: '1px solid #eee' }}>
-                                <td style={{ padding: '12px' }}>{p.sku}</td>
-                                <td style={{ padding: '12px' }}>{p.name}</td>
-                                <td style={{ padding: '12px' }}>${p.basePrice || p.price}</td>
-                                <td style={{ padding: '12px' }}>{p.type || 'BUNDLE'}</td>
-                                <td style={{ padding: '12px', fontWeight: 'bold', color: p.quantity > 0 ? '#27ae60' : '#e74c3c' }}>
+                                {visibleColumns.sku && <td style={{ padding: '12px' }}>{p.sku}</td>}
+                                {visibleColumns.name && <td style={{ padding: '12px' }}>{p.name}</td>}
+                                {visibleColumns.price && <td style={{ padding: '12px' }}>₹{p.basePrice || p.price}</td>}
+                                {visibleColumns.type && <td style={{ padding: '12px' }}>{p.type || 'BUNDLE'}</td>}
+
+                                {visibleColumns.author && <td style={{ padding: '12px' }}>{p.attributes?.author || '-'}</td>}
+                                {visibleColumns.isbn && <td style={{ padding: '12px' }}>{p.attributes?.isbn || '-'}</td>}
+                                {visibleColumns.brand && <td style={{ padding: '12px' }}>{p.attributes?.brand || '-'}</td>}
+                                {visibleColumns.hardness && <td style={{ padding: '12px' }}>{p.attributes?.hardness || '-'}</td>}
+
+                                {visibleColumns.stock && <td style={{ padding: '12px', fontWeight: 'bold', color: p.quantity > 0 ? '#27ae60' : '#e74c3c' }}>
                                     {p.quantity}
-                                </td>
+                                </td>}
+                                <td style={{ padding: '12px' }}></td> {/* Empty cell for the actions column */}
                             </tr>
                         ))}
                     </tbody>

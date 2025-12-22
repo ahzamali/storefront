@@ -184,13 +184,13 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
                             <tr key={item.sku}>
                                 <td>{item.name}</td>
                                 <td>{item.quantity}</td>
-                                <td>${item.basePrice}</td>
-                                <td>${(item.basePrice * item.quantity).toFixed(2)}</td>
+                                <td>₹{item.basePrice}</td>
+                                <td>₹{(item.basePrice * item.quantity).toFixed(2)}</td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
-                <h3 style={{ textAlign: 'right' }}>Total: ${calculateTotal().toFixed(2)}</h3>
+                <h3 style={{ textAlign: 'right' }}>Total: ₹{calculateTotal().toFixed(2)}</h3>
 
                 <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
                     <button onClick={() => setView('selection')} style={{ flex: 1, padding: '10px', background: '#95a5a6', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Back</button>
@@ -263,7 +263,7 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
                                         <tr key={stockLevel.product.sku} style={{ borderBottom: '1px solid #ecf0f1' }}>
                                             <td style={{ padding: '10px' }}>{stockLevel.product.sku}</td>
                                             <td style={{ padding: '10px' }}>{stockLevel.product.name}</td>
-                                            <td style={{ padding: '10px', textAlign: 'right' }}>${stockLevel.product.basePrice}</td>
+                                            <td style={{ padding: '10px', textAlign: 'right' }}>₹{stockLevel.product.basePrice}</td>
                                             <td style={{ padding: '10px', textAlign: 'right', color: stockLevel.quantity > 0 ? '#27ae60' : '#e74c3c' }}>
                                                 {stockLevel.quantity}
                                             </td>
@@ -342,10 +342,10 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
                             <div key={item.sku} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', alignItems: 'center' }}>
                                 <div>
                                     <div>{item.name}</div>
-                                    <div style={{ fontSize: '0.8rem', color: '#95a5a6' }}>${item.basePrice} x {item.quantity}</div>
+                                    <div style={{ fontSize: '0.8rem', color: '#95a5a6' }}>₹{item.basePrice} x {item.quantity}</div>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <span>${(item.basePrice * item.quantity).toFixed(2)}</span>
+                                    <span>₹{(item.basePrice * item.quantity).toFixed(2)}</span>
                                     <button onClick={() => removeFromCart(item.sku)} style={{ background: 'none', border: 'none', color: '#e74c3c', cursor: 'pointer', fontSize: '1.5rem' }}>×</button>
                                 </div>
                             </div>
@@ -355,7 +355,7 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
                     <div style={{ marginTop: '1rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '1rem' }}>
                             <span>Total</span>
-                            <span>${calculateTotal().toFixed(2)}</span>
+                            <span>₹{calculateTotal().toFixed(2)}</span>
                         </div>
                         <button onClick={handleVerify} style={{ width: '100%', padding: '12px', background: '#2c3e50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '1rem' }}>
                             Proceed to Checkout
