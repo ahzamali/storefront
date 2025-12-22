@@ -23,17 +23,39 @@ public class AuthController {
         String username = body.get("username");
         String password = body.get("password");
 
+        // Prepare error response (consistent type with success)
+        java.util.HashMap<String, Object> errorResponse = new java.util.HashMap<>();
+        errorResponse.put("error", "Invalid credentials");
+
         try {
             return authService.login(username, password)
                     .map(u -> {
+                        System.out.println("=== CONTROLLER DEBUG ===");
+                        System.out.println("Login successful, generating token...");
                         String token = authService.generateToken(u);
+                        System.out.println("Token generated: " + token);
                         Long storeId = u.getStore() != null ? u.getStore().getId() : null;
-                        return ResponseEntity.ok(
-                                Map.of("token", token, "role", u.getRole(), "userId", u.getId(), "storeId", storeId));
+                        System.out.println("StoreId: " + storeId);
+
+                        // Use HashMap instead of Map.of() because Map.of() doesn't accept null values
+                        java.util.HashMap<String, Object> response = new java.util.HashMap<>();
+                        response.put("token", token);
+                        response.put("role", u.getRole());
+                        response.put("userId", u.getId());
+                        response.put("storeId", storeId);
+
+                        System.out.println("Returning response: " + response);
+                        System.out.println("========================");
+                        return ResponseEntity.ok(response);
                     })
-                    .orElse(ResponseEntity.status(401).body(Map.of("error", "Invalid credentials")));
+                    .orElse(ResponseEntity.status(401).body(errorResponse));
         } catch (Exception e) {
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
+            System.err.println("=== LOGIN ERROR ===");
+            System.err.println("Exception during login: " + e.getClass().getName());
+            System.err.println("Message: " + e.getMessage());
+            e.printStackTrace();
+            System.err.println("===================");
+            return ResponseEntity.status(401).body(errorResponse);
         }
     }
 

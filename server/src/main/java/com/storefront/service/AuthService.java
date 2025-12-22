@@ -46,8 +46,24 @@ public class AuthService {
     public Optional<AppUser> login(String username, String password) {
         // Manual password verification instead of AuthenticationManager
         // AuthenticationManager was not working correctly in production
-        return userRepository.findByUsername(username)
-                .filter(user -> passwordEncoder.matches(password, user.getPasswordHash()));
+        System.out.println("=== LOGIN DEBUG ===");
+        System.out.println("Attempting login for username: " + username);
+
+        Optional<AppUser> userOpt = userRepository.findByUsername(username);
+        if (userOpt.isEmpty()) {
+            System.out.println("User NOT found in database!");
+            return Optional.empty();
+        }
+
+        AppUser user = userOpt.get();
+        System.out.println("User found! Stored hash: " + user.getPasswordHash());
+        System.out.println("Input password: " + password);
+
+        boolean matches = passwordEncoder.matches(password, user.getPasswordHash());
+        System.out.println("Password matches: " + matches);
+        System.out.println("===================");
+
+        return matches ? Optional.of(user) : Optional.empty();
     }
 
     public String generateToken(AppUser user) {
