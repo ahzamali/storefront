@@ -27,11 +27,13 @@ public class InventoryController {
     }
 
     @GetMapping("/products")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_STORE_ADMIN', 'ROLE_EMPLOYEE')")
     public ResponseEntity<List<Product>> getAllProducts() {
         return ResponseEntity.ok(inventoryService.getAllProducts());
     }
 
     @GetMapping("/view")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_STORE_ADMIN', 'ROLE_EMPLOYEE')")
     public ResponseEntity<?> getInventoryView() {
         return ResponseEntity.ok(inventoryService.getInventoryView());
     }
@@ -40,6 +42,12 @@ public class InventoryController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> createBundle(@RequestBody BundleDTO bundleDTO) {
         return ResponseEntity.ok(inventoryService.createBundle(bundleDTO));
+    }
+
+    @GetMapping("/bundles")
+    @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_STORE_ADMIN', 'ROLE_EMPLOYEE')")
+    public ResponseEntity<List<com.storefront.dto.BundleViewDTO>> getAllBundles() {
+        return ResponseEntity.ok(inventoryService.getAllBundles());
     }
 
     @PostMapping("/stock")

@@ -145,4 +145,23 @@ public class InventoryService {
 
                 return stockLevelRepository.findAll(spec);
         }
+
+        public List<com.storefront.dto.BundleViewDTO> getAllBundles() {
+                List<Bundle> bundles = bundleRepository.findAll();
+                return bundles.stream().map(bundle -> {
+                        List<BundleItem> items = bundleItemRepository.findByBundleId(bundle.getId());
+                        List<com.storefront.dto.BundleViewDTO.BundleItemDTO> itemDTOs = items.stream()
+                                        .map(item -> new com.storefront.dto.BundleViewDTO.BundleItemDTO(
+                                                        item.getProduct().getSku(),
+                                                        item.getQuantity()))
+                                        .collect(Collectors.toList());
+
+                        return new com.storefront.dto.BundleViewDTO(
+                                        bundle.getId(),
+                                        bundle.getSku(),
+                                        bundle.getName(),
+                                        bundle.getPrice(),
+                                        itemDTOs);
+                }).collect(Collectors.toList());
+        }
 }

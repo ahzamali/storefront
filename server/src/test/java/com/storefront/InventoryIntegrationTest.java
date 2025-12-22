@@ -25,7 +25,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
-@SpringBootTest
+@SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:testdb_inv;DB_CLOSE_DELAY=-1")
 @AutoConfigureMockMvc
 @Transactional
 public class InventoryIntegrationTest {
@@ -113,5 +113,12 @@ public class InventoryIntegrationTest {
                 .content(objectMapper.writeValueAsString(stockDTO)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.quantity").value(100));
+
+        // 5. Get Bundles (Admin/Employee) -> 200
+        mockMvc.perform(get("/api/v1/inventory/bundles")
+                .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].sku").value("BUN-INV-1"))
+                .andExpect(jsonPath("$[0].items").isArray());
     }
 }

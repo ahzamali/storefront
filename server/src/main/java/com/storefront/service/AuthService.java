@@ -4,9 +4,6 @@ import com.storefront.model.AppUser;
 import com.storefront.model.Role;
 import com.storefront.repository.AppUserRepository;
 import com.storefront.security.JwtTokenProvider;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.util.Optional;
@@ -16,17 +13,14 @@ public class AuthService {
 
     private final AppUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider tokenProvider;
-
     private final com.storefront.repository.StoreRepository storeRepository;
 
     public AuthService(AppUserRepository userRepository, PasswordEncoder passwordEncoder,
-            AuthenticationManager authenticationManager, JwtTokenProvider tokenProvider,
+            JwtTokenProvider tokenProvider,
             com.storefront.repository.StoreRepository storeRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
-        this.authenticationManager = authenticationManager;
         this.tokenProvider = tokenProvider;
         this.storeRepository = storeRepository;
     }
@@ -50,14 +44,17 @@ public class AuthService {
     }
 
     public Optional<AppUser> login(String username, String password) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(username, password));
-
-        // If we reach here, auth successful
-        return userRepository.findByUsername(username);
+        // Manual password verification instead of AuthenticationManager
+        // AuthenticationManager was not working correctly in production
+        return userRepository.findByUsername(username)
+                .filter(user -> passwordEncoder.matches(password, user.getPasswordHash()));
     }
 
     public String generateToken(AppUser user) {
         return tokenProvider.generateToken(user.getUsername(), user.getRole().name(), user.getId());
+    }
+
+    public void deleteUser(Long id) {
+        userRepository.deleteById(id);
     }
 }

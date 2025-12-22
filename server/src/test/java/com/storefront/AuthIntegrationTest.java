@@ -17,63 +17,97 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
-@SpringBootTest
+@SpringBootTest(properties = "spring.datasource.url=jdbc:h2:mem:testdb_auth;DB_CLOSE_DELAY=-1")
 @AutoConfigureMockMvc
 public class AuthIntegrationTest {
 
-    @Autowired
-    private MockMvc mockMvc;
-    @Autowired
-    private ObjectMapper objectMapper;
+        @Autowired
+        private MockMvc mockMvc;
+        @Autowired
+        private ObjectMapper objectMapper;
+        @Autowired
+        private com.storefront.service.AuthService authService;
 
-    @Test
-    void testAuthFlow() throws Exception {
-        String username = "testuser_" + System.currentTimeMillis();
-        String password = "password123";
+        @Test
+        void testAuthFlow() throws Exception {
+                // 0. Login as SuperAdmin to get token for registration
+                var superAdmin = authService.login("superadmin", "password")
+                                .orElseThrow(() -> new RuntimeException("SuperAdmin login failed"));
+                String superToken = authService.generateToken(superAdmin);
 
-        // 1. Register
-        Map<String, String> registerRequest = Map.of(
-                "username", username,
-                "password", password,
-                "role", "EMPLOYEE");
+                String username = "testuser_" + System.currentTimeMillis();
+                String password = "password123";
 
-        mockMvc.perform(post("/api/v1/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(registerRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.username").value(username));
+                // 1. Register (as Admin)
+                Map<String, String> registerRequest = Map.of(
+                                "username", username,
+                                "password", password,
+                                "role", "EMPLOYEE");
 
-        // 2. Login
-        Map<String, String> loginRequest = Map.of(
-                "username", username,
-                "password", password);
+                mockMvc.perform(post("/api/v1/auth/register")
+                                .header("Authorization", "Bearer " + superToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(registerRequest)))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.username").value(username));
 
-        MvcResult result = mockMvc.perform(post("/api/v1/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(loginRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token").exists())
-                .andReturn();
+                // 2. Login the newly created user
+                var newUser = authService.login(username, password)
+                                .orElseThrow(() -> new RuntimeException("New user login failed"));
+                String token = authService.generateToken(newUser);
 
-        String response = result.getResponse().getContentAsString();
-        String token = objectMapper.readTree(response).get("token").asText();
+                // 3. Access Protected Resource
+                mockMvc.perform(get("/api/v1/auth/users") // Use an existing endpoint to test auth
+                                .header("Authorization", "Bearer " + superToken)) // List users requires Admin
+                                .andExpect(status().isOk());
+        }
 
-        // 3. Access Protected Resource (Assuming /api/v1/unknown-endpoint yields 404
-        // but 403 if unauthorized)
-        // Wait, I haven't defined any other endpoints yet.
-        // Let's rely on the fact that any request to /api/v1/auth is public, but others
-        // are protected.
-        // Let's try to access a fictitious endpoint which should be 404 if authorized,
-        // but 403 if not.
+        @Test
+        void testDeleteUserFlow() throws Exception {
+                // Login SuperAdmin
+                var superAdmin = authService.login("superadmin", "password")
+                                .orElseThrow(() -> new RuntimeException("SuperAdmin login failed"));
+                String superToken = authService.generateToken(superAdmin);
 
-        // Without Token -> 403 Forbidden (or 401 Unauthorized depending on config, but
-        // default is usually 403/401)
-        mockMvc.perform(get("/api/v1/protected-resource"))
-                .andExpect(status().isForbidden());
+                // Create Admin for this test (using superadmin token)
+                mockMvc.perform(post("/api/v1/auth/register")
+                                .header("Authorization", "Bearer " + superToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                                Map.of("username", "admin_del", "password", "pass", "role", "ADMIN"))))
+                                .andExpect(status().isOk());
 
-        // With Token -> 404 Not Found (Authorized but resource missing)
-        mockMvc.perform(get("/api/v1/protected-resource")
-                .header("Authorization", "Bearer " + token))
-                .andExpect(status().isNotFound());
-    }
+                // Login Admin
+                var adminUser = authService.login("admin_del", "pass")
+                                .orElseThrow(() -> new RuntimeException("Admin login failed"));
+                String adminToken = authService.generateToken(adminUser);
+
+                // Register Victim (using admin token)
+                mockMvc.perform(post("/api/v1/auth/register")
+                                .header("Authorization", "Bearer " + adminToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                                Map.of("username", "victim", "password", "pass", "role", "EMPLOYEE"))))
+                                .andExpect(status().isOk());
+
+                // Get Victim ID (users list)
+                String usersResp = mockMvc.perform(get("/api/v1/auth/users")
+                                .header("Authorization", "Bearer " + adminToken))
+                                .andReturn().getResponse().getContentAsString();
+
+                com.fasterxml.jackson.databind.JsonNode usersNode = objectMapper.readTree(usersResp);
+                int victimId = 0;
+                for (com.fasterxml.jackson.databind.JsonNode node : usersNode) {
+                        if (node.get("username").asText().equals("victim")) {
+                                victimId = node.get("id").asInt();
+                                break;
+                        }
+                }
+
+                // Delete Victim
+                mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                                .delete("/api/v1/auth/users/" + victimId)
+                                .header("Authorization", "Bearer " + adminToken))
+                                .andExpect(status().isOk());
+        }
 }

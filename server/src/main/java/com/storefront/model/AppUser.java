@@ -21,8 +21,9 @@ public class AppUser {
     @Column(nullable = false)
     private Role role;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "store_id")
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties("currentOwner")
     private Store store;
 
     @org.hibernate.annotations.CreationTimestamp

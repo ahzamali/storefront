@@ -152,6 +152,7 @@ public class OrderService {
             });
         }
 
-        return orderRepository.findAll(spec);
+        return orderRepository.findAll(spec, org.springframework.data.domain.Sort
+                .by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt"));
     }
 }

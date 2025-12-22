@@ -15,6 +15,8 @@ const Login = ({ setToken }) => {
         try {
             const data = await login(username, password);
             setToken(data.token);
+            if (data.storeId) localStorage.setItem('storeId', data.storeId);
+            else localStorage.removeItem('storeId');
             navigate('/');
         } catch (err) {
             setError('Login failed. Please check credentials.');

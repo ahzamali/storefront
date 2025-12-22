@@ -27,7 +27,9 @@ public class AuthController {
             return authService.login(username, password)
                     .map(u -> {
                         String token = authService.generateToken(u);
-                        return ResponseEntity.ok(Map.of("token", token, "role", u.getRole(), "userId", u.getId()));
+                        Long storeId = u.getStore() != null ? u.getStore().getId() : null;
+                        return ResponseEntity.ok(
+                                Map.of("token", token, "role", u.getRole(), "userId", u.getId(), "storeId", storeId));
                     })
                     .orElse(ResponseEntity.status(401).body(Map.of("error", "Invalid credentials")));
         } catch (Exception e) {
@@ -36,26 +38,37 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'STORE_ADMIN')")
-    public ResponseEntity<?> register(@RequestBody Map<String, String> body) {
-        String storeIdStr = body.get("storeId");
-        Long storeId = storeIdStr != null ? Long.parseLong(storeIdStr) : null;
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_STORE_ADMIN')")
+    public ResponseEntity<?> register(@RequestBody com.storefront.dto.RegisterRequestDTO body) {
+        try {
+            Long storeId = body.getStoreId();
+            Role role = Role.valueOf(body.getRole());
 
-        Role role = Role.valueOf(body.get("role"));
-        // Basic protection: Only SUPER_ADMIN can create admins? For now allow broadly
-        // if method security passes.
-
-        AppUser user = authService.register(
-                body.get("username"),
-                body.get("password"),
-                role,
-                storeId);
-        return ResponseEntity.ok(user);
+            AppUser user = authService.register(
+                    body.getUsername(),
+                    body.getPassword(),
+                    role,
+                    storeId);
+            return ResponseEntity.ok(user);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Username already exists"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid Role or Data"));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
     }
 
     @GetMapping("/users")
-    @org.springframework.security.access.prepost.PreAuthorize("hasAnyRole('SUPER_ADMIN', 'STORE_ADMIN')")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_STORE_ADMIN')")
     public java.util.List<AppUser> listUsers() {
         return authService.getAllUsers();
+    }
+
+    @DeleteMapping("/users/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_STORE_ADMIN')")
+    public ResponseEntity<?> deleteUser(@PathVariable Long id) {
+        authService.deleteUser(id);
+        return ResponseEntity.ok().build();
     }
 }

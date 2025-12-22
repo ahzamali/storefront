@@ -1,12 +1,16 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import InventoryManager from '../components/InventoryManager';
 import StoreManager from '../components/StoreManager';
+import UserManager from '../components/UserManager';
+import PointOfSale from '../components/PointOfSale';
 
 const Dashboard = ({ token, setToken }) => {
     const [view, setView] = useState('inventory');
+    const storeId = localStorage.getItem('storeId');
 
     const logout = () => {
         setToken(null);
+        localStorage.removeItem('storeId');
     };
 
     return (
@@ -16,6 +20,10 @@ const Dashboard = ({ token, setToken }) => {
                 <h3>Admin Panel</h3>
                 <ul style={{ listStyle: 'none', padding: 0, marginTop: '2rem' }}>
                     <li
+                        onClick={() => setView('pos')}
+                        style={{ padding: '10px', cursor: 'pointer', background: view === 'pos' ? '#34495e' : 'transparent', fontWeight: 'bold', color: '#f1c40f' }}
+                    >Point of Sale</li>
+                    <li
                         onClick={() => setView('inventory')}
                         style={{ padding: '10px', cursor: 'pointer', background: view === 'inventory' ? '#34495e' : 'transparent' }}
                     >Inventory</li>
@@ -23,14 +31,20 @@ const Dashboard = ({ token, setToken }) => {
                         onClick={() => setView('stores')}
                         style={{ padding: '10px', cursor: 'pointer', background: view === 'stores' ? '#34495e' : 'transparent' }}
                     >Virtual Stores</li>
+                    <li
+                        onClick={() => setView('users')}
+                        style={{ padding: '10px', cursor: 'pointer', background: view === 'users' ? '#34495e' : 'transparent' }}
+                    >Users</li>
                 </ul>
                 <button onClick={logout} style={{ marginTop: 'auto', width: '100%', background: '#c0392b' }}>Logout</button>
             </div>
 
             {/* Content */}
             <div style={{ flex: 1, padding: '2rem', color: '#2c3e50' }}>
+                {view === 'pos' && <PointOfSale userStoreId={storeId} />}
                 {view === 'inventory' && <InventoryManager />}
                 {view === 'stores' && <StoreManager />}
+                {view === 'users' && <UserManager />}
             </div>
         </div>
     );

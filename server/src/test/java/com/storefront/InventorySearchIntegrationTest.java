@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -49,6 +50,9 @@ public class InventorySearchIntegrationTest {
     private StockLevelRepository stockLevelRepository;
 
     @Autowired
+    private com.storefront.repository.AppUserRepository appUserRepository; // Inject AppUserRepository
+
+    @Autowired
     private com.storefront.service.AuthService authService; // Inject AuthService
 
     @Autowired
@@ -61,10 +65,28 @@ public class InventorySearchIntegrationTest {
     void setUp() throws Exception {
         // Authenticate as Admin
         com.storefront.model.AppUser adminUser;
-        try {
-            adminUser = authService.register("admin", "adminpass", com.storefront.model.Role.ADMIN);
-        } catch (Exception e) {
-            adminUser = authService.login("admin", "adminpass").get();
+        String adminName = "inv_search_admin";
+        if (appUserRepository.findByUsername(adminName).isEmpty()) {
+            adminUser = authService.register(adminName, "inv_pass", com.storefront.model.Role.ADMIN);
+        } else {
+            // If exists, force delete and recreate or just login?
+            // Better to force recreate to ensure clean state or just login with known pass.
+            // Assuming "inv_pass" is used.
+            try {
+                adminUser = authService.login(adminName, "inv_pass").get();
+            } catch (Exception e) {
+                // If login fails (wrong pass?), delete and recreate
+                Optional<com.storefront.model.AppUser> existing = appUserRepository.findByUsername(adminName);
+                if (existing.isPresent()) {
+                    // This might be tricky if FK constraints exists, but for test user usually fine
+                    // Or just use a timestamp in name.
+                    // Let's use timestamp to be safe.
+                    adminName = "inv_search_admin_" + System.currentTimeMillis();
+                    adminUser = authService.register(adminName, "inv_pass", com.storefront.model.Role.ADMIN);
+                } else {
+                    throw e;
+                }
+            }
         }
         adminToken = authService.generateToken(adminUser);
 

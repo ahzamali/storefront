@@ -12,6 +12,7 @@ This document lists all the REST APIs available in the StoreFront v2 application
 | `POST` | `/login` | Authenticate user and get token. | Public | `{ "username": "...", "password": "..." }` |
 | `POST` | `/register` | Register a new user. | Super Admin, Store Admin | `{ "username": "...", "password": "...", "role": "...", "storeId": "..." }` |
 | `GET` | `/users` | List all registered users. | Super Admin, Store Admin | - |
+| `DELETE` | `/users/{id}` | Delete a user by ID. | Admin, Super Admin | - |
 
 ## Inventory (Global/HQ) (`/inventory`)
 
@@ -39,7 +40,7 @@ This document lists all the REST APIs available in the StoreFront v2 application
 | Method | Endpoint | Description | Roles | Request Body / Params |
 | :--- | :--- | :--- | :--- | :--- |
 | `POST` | `/` | Create a new customer order. | Public | `{ "storeId": ..., "customerName": "...", "customerPhone": "...", "items": [...] }` |
-| `GET` | `/` | Search orders by customer. | Public | Query: `customerName`, `customerPhone` |
+| `GET` | `/` | Search orders by customer. | Public | Query: `customerName`, `customerPhone`. Results sorted by `createdAt` DESC (Newest first). |
 
 ---
 **Note**: All endpoints requiring Roles must include the `Authorization: Bearer <token>` header.
