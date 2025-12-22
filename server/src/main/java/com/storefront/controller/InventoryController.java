@@ -21,7 +21,7 @@ public class InventoryController {
     }
 
     @PostMapping("/products")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'STORE_ADMIN', 'ADMIN')")
     public ResponseEntity<Product> createProduct(@RequestBody Product product) {
         return ResponseEntity.ok(inventoryService.createProduct(product));
     }
@@ -39,7 +39,7 @@ public class InventoryController {
     }
 
     @PostMapping("/bundles")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'STORE_ADMIN', 'ADMIN')")
     public ResponseEntity<?> createBundle(@RequestBody BundleDTO bundleDTO) {
         return ResponseEntity.ok(inventoryService.createBundle(bundleDTO));
     }
@@ -51,7 +51,7 @@ public class InventoryController {
     }
 
     @PostMapping("/stock")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'STORE_ADMIN', 'ADMIN')")
     public ResponseEntity<?> addStock(@RequestBody StockIngestDTO dto) {
         return ResponseEntity.ok(inventoryService.addStock(dto.getSku(), dto.getQuantity()));
     }

@@ -36,14 +36,14 @@ public class StoreController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN')")
     public ResponseEntity<?> createStore(@RequestBody Map<String, String> body) {
         Store store = storeService.createStore(body.get("name"), Store.StoreType.VIRTUAL, null);
         return ResponseEntity.ok(store);
     }
 
     @PostMapping("/{id}/allocate")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'STORE_ADMIN', 'ADMIN')")
     public ResponseEntity<?> allocate(@PathVariable Long id, @RequestBody AllocationRequestDTO request,
             @AuthenticationPrincipal UserDetails userDetails) {
         AppUser user = userRepository.findByUsername(userDetails.getUsername())
@@ -59,7 +59,7 @@ public class StoreController {
     }
 
     @PostMapping("/{id}/reconcile")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'STORE_ADMIN', 'ADMIN')")
     public ResponseEntity<?> reconcile(@PathVariable Long id, @AuthenticationPrincipal UserDetails userDetails) {
         AppUser user = userRepository.findByUsername(userDetails.getUsername())
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));

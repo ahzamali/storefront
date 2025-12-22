@@ -34,9 +34,26 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**", "/h2-console/**").permitAll()
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/inventory/**")
-                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_SUPER_ADMIN", "ROLE_STORE_ADMIN")
                         .anyRequest().authenticated())
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            org.slf4j.LoggerFactory.getLogger(SecurityConfig.class)
+                                    .error("Authentication failed for {} {}: {}",
+                                            request.getMethod(), request.getRequestURI(), authException.getMessage());
+                            response.sendError(org.springframework.http.HttpStatus.UNAUTHORIZED.value(),
+                                    authException.getMessage());
+                        })
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            org.slf4j.LoggerFactory.getLogger(SecurityConfig.class)
+                                    .error("Access DENIED for {} {} - User: {}, Error: {}",
+                                            request.getMethod(),
+                                            request.getRequestURI(),
+                                            org.springframework.security.core.context.SecurityContextHolder
+                                                    .getContext().getAuthentication(),
+                                            accessDeniedException.getMessage());
+                            response.sendError(org.springframework.http.HttpStatus.FORBIDDEN.value(),
+                                    accessDeniedException.getMessage());
+                        }))
                 .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.disable()))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
