@@ -6,11 +6,19 @@ import PointOfSale from '../components/PointOfSale';
 
 const Dashboard = ({ token, setToken }) => {
     const [view, setView] = useState('inventory');
-    const storeId = localStorage.getItem('storeId');
+
+    // Extract user info from localStorage
+    const userId = localStorage.getItem('userId');
+    const userRole = localStorage.getItem('userRole');
+    const userStoreIdsStr = localStorage.getItem('storeIds');
+    const userStoreIds = userStoreIdsStr ? JSON.parse(userStoreIdsStr) : [];
 
     const logout = () => {
         setToken(null);
-        localStorage.removeItem('storeId');
+        localStorage.removeItem('userId');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('storeIds');
+        localStorage.removeItem('token');
     };
 
     return (
@@ -21,7 +29,7 @@ const Dashboard = ({ token, setToken }) => {
                 <ul style={{ listStyle: 'none', padding: 0, marginTop: '2rem' }}>
                     <li
                         onClick={() => setView('pos')}
-                        style={{ padding: '10px', cursor: 'pointer', background: view === 'pos' ? '#34495e' : 'transparent', fontWeight: 'bold', color: '#f1c40f' }}
+                        style={{ padding: '10px', cursor: 'pointer', background: view === 'pos' ? '#34495e' : 'transparent' }}
                     >Point of Sale</li>
                     <li
                         onClick={() => setView('inventory')}
@@ -41,7 +49,7 @@ const Dashboard = ({ token, setToken }) => {
 
             {/* Content */}
             <div style={{ flex: 1, padding: '2rem', color: '#2c3e50' }}>
-                {view === 'pos' && <PointOfSale userStoreId={storeId} />}
+                {view === 'pos' && <PointOfSale userId={userId} userRole={userRole} userStoreIds={userStoreIds} />}
                 {view === 'inventory' && <InventoryManager />}
                 {view === 'stores' && <StoreManager />}
                 {view === 'users' && <UserManager />}

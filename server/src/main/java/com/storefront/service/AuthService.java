@@ -34,7 +34,9 @@ public class AuthService {
         AppUser user = new AppUser(username, encodedPassword, role);
 
         if (storeId != null) {
-            storeRepository.findById(storeId).ifPresent(user::setStore);
+            storeRepository.findById(storeId).ifPresent(store -> {
+                user.addStore(store);
+            });
         }
         return userRepository.save(user);
     }

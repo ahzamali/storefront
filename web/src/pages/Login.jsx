@@ -15,8 +15,12 @@ const Login = ({ setToken }) => {
         try {
             const data = await login(username, password);
             setToken(data.token);
-            if (data.storeId) localStorage.setItem('storeId', data.storeId);
-            else localStorage.removeItem('storeId');
+
+            // Store user info for multi-store support
+            if (data.userId) localStorage.setItem('userId', data.userId);
+            if (data.role) localStorage.setItem('userRole', data.role);
+            if (data.storeIds) localStorage.setItem('storeIds', JSON.stringify(data.storeIds));
+
             navigate('/');
         } catch (err) {
             setError('Login failed. Please check credentials.');

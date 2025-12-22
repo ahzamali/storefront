@@ -34,15 +34,19 @@ public class AuthController {
                         System.out.println("Login successful, generating token...");
                         String token = authService.generateToken(u);
                         System.out.println("Token generated: " + token);
-                        Long storeId = u.getStore() != null ? u.getStore().getId() : null;
-                        System.out.println("StoreId: " + storeId);
+
+                        // Get list of store IDs
+                        java.util.List<Long> storeIds = u.getStores().stream()
+                                .map(com.storefront.model.Store::getId)
+                                .collect(java.util.stream.Collectors.toList());
+                        System.out.println("Store IDs: " + storeIds);
 
                         // Use HashMap instead of Map.of() because Map.of() doesn't accept null values
                         java.util.HashMap<String, Object> response = new java.util.HashMap<>();
                         response.put("token", token);
                         response.put("role", u.getRole());
                         response.put("userId", u.getId());
-                        response.put("storeId", storeId);
+                        response.put("storeIds", storeIds);
 
                         System.out.println("Returning response: " + response);
                         System.out.println("========================");

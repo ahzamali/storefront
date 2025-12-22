@@ -19,6 +19,15 @@ CREATE TABLE store (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 2.1. User-Store Assignment (ManyToMany relationship)
+CREATE TABLE user_stores (
+    user_id BIGINT NOT NULL,
+    store_id BIGINT NOT NULL,
+    PRIMARY KEY (user_id, store_id),
+    FOREIGN KEY (user_id) REFERENCES app_user(id) ON DELETE CASCADE,
+    FOREIGN KEY (store_id) REFERENCES store(id) ON DELETE CASCADE
+);
+
 -- 3. Products
 CREATE TABLE product (
     id BIGSERIAL PRIMARY KEY,

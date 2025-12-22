@@ -21,10 +21,10 @@ public class AppUser {
     @Column(nullable = false)
     private Role role;
 
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "store_id")
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(name = "user_stores", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "store_id"))
     @com.fasterxml.jackson.annotation.JsonIgnoreProperties("currentOwner")
-    private Store store;
+    private java.util.Set<Store> stores = new java.util.HashSet<>();
 
     @org.hibernate.annotations.CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -37,6 +37,7 @@ public class AppUser {
         this.username = username;
         this.passwordHash = passwordHash;
         this.role = role;
+        this.stores = new java.util.HashSet<>();
     }
 
     public Long getId() {
@@ -67,12 +68,20 @@ public class AppUser {
         this.role = role;
     }
 
-    public Store getStore() {
-        return store;
+    public java.util.Set<Store> getStores() {
+        return stores;
     }
 
-    public void setStore(Store store) {
-        this.store = store;
+    public void setStores(java.util.Set<Store> stores) {
+        this.stores = stores;
+    }
+
+    public void addStore(Store store) {
+        this.stores.add(store);
+    }
+
+    public void removeStore(Store store) {
+        this.stores.remove(store);
     }
 
     public LocalDateTime getCreatedAt() {

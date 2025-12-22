@@ -1,55 +1,122 @@
 import { useState, useEffect } from 'react';
-import { getAllProducts, getBundles, createOrder } from '../services/api';
+import { getAllStores, getStoreInventory, getBundles, createOrder } from '../services/api';
 
-const PointOfSale = ({ userStoreId }) => { // Expect userStoreId from parent
-    const [products, setProducts] = useState([]);
+const PointOfSale = ({ userId, userRole, userStoreIds }) => {
+    const [stores, setStores] = useState([]);
+    const [selectedStoreId, setSelectedStoreId] = useState(null);
+    const [inventory, setInventory] = useState([]);
     const [bundles, setBundles] = useState([]);
+    const [searchQuery, setSearchQuery] = useState('');
     const [cart, setCart] = useState([]);
     const [customer, setCustomer] = useState({ name: '', phone: '' });
     const [view, setView] = useState('selection'); // 'selection' | 'verify'
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
-    const [currentStoreId, setCurrentStoreId] = useState(userStoreId);
+    const [loading, setLoading] = useState(false);
 
+    // Load stores on mount
     useEffect(() => {
-        loadInventory();
-        // If userStoreId is missing (e.g. Super Admin), explicitly set or prompt (omitted for brevity, defaulting to generic/null if not passed)
+        loadStores();
+        loadBundles();
     }, []);
 
-    const loadInventory = async () => {
+    // Load inventory when store selection changes
+    useEffect(() => {
+        if (selectedStoreId) {
+            loadInventory(selectedStoreId, searchQuery);
+        }
+    }, [selectedStoreId, searchQuery]);
+
+    const loadStores = async () => {
         try {
-            const [pData, bData] = await Promise.all([getAllProducts(), getBundles()]);
-            setProducts(pData);
-            setBundles(bData);
+            setLoading(true);
+            const allStores = await getAllStores();
+
+            // Filter stores based on user role
+            let availableStores;
+            if (userRole === 'SUPER_ADMIN') {
+                availableStores = allStores;
+            } else if (userStoreIds && userStoreIds.length > 0) {
+                availableStores = allStores.filter(s => userStoreIds.includes(s.id));
+            } else {
+                availableStores = [];
+            }
+
+            setStores(availableStores);
+
+            // Auto-select first store if available
+            if (availableStores.length > 0 && !selectedStoreId) {
+                setSelectedStoreId(availableStores[0].id);
+            }
         } catch (err) {
-            setError('Failed to load inventory.');
+            setError('Failed to load stores: ' + err.message);
+        } finally {
+            setLoading(false);
         }
     };
 
-    const addToCart = (item, type = 'PRODUCT') => {
+    const loadInventory = async (storeId, search = '') => {
+        try {
+            setLoading(true);
+            const stockLevels = await getStoreInventory(storeId, search);
+            setInventory(stockLevels);
+        } catch (err) {
+            setError('Failed to load inventory: ' + err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const loadBundles = async () => {
+        try {
+            const bundlesData = await getBundles();
+            setBundles(bundlesData);
+        } catch (err) {
+            console.error('Failed to load bundles:', err);
+        }
+    };
+
+    const addToCart = (stockLevel) => {
+        const product = stockLevel.product;
         const newCart = [...cart];
 
-        if (type === 'BUNDLE') {
-            // Explode bundle
-            item.items.forEach(bundleItem => {
-                const product = products.find(p => p.sku === bundleItem.productSku);
-                if (product) {
-                    processCartItem(newCart, product, bundleItem.quantity);
-                }
-            });
+        const existing = newCart.find(i => i.sku === product.sku);
+        if (existing) {
+            if (existing.quantity < stockLevel.quantity) {
+                existing.quantity += 1;
+            } else {
+                setError(`Only ${stockLevel.quantity} units available`);
+                return;
+            }
         } else {
-            processCartItem(newCart, item, 1);
+            if (stockLevel.quantity > 0) {
+                newCart.push({ ...product, quantity: 1, availableStock: stockLevel.quantity });
+            } else {
+                setError('Product out of stock');
+                return;
+            }
         }
         setCart(newCart);
+        setError('');
     };
 
-    const processCartItem = (cartList, product, qty) => {
-        const existing = cartList.find(i => i.sku === product.sku);
-        if (existing) {
-            existing.quantity += qty;
-        } else {
-            cartList.push({ ...product, quantity: qty });
-        }
+    const addBundleToCart = (bundle) => {
+        const newCart = [...cart];
+
+        bundle.items.forEach(bundleItem => {
+            const stockLevel = inventory.find(s => s.product.sku === bundleItem.productSku);
+            if (stockLevel && stockLevel.product) {
+                const product = stockLevel.product;
+                const existing = newCart.find(i => i.sku === product.sku);
+                if (existing) {
+                    existing.quantity += bundleItem.quantity;
+                } else {
+                    newCart.push({ ...product, quantity: bundleItem.quantity, availableStock: stockLevel.quantity });
+                }
+            }
+        });
+
+        setCart(newCart);
     };
 
     const removeFromCart = (sku) => {
@@ -69,6 +136,10 @@ const PointOfSale = ({ userStoreId }) => { // Expect userStoreId from parent
             setError('Customer Name is required');
             return;
         }
+        if (!selectedStoreId) {
+            setError('Please select a store');
+            return;
+        }
         setError('');
         setView('verify');
     };
@@ -76,14 +147,11 @@ const PointOfSale = ({ userStoreId }) => { // Expect userStoreId from parent
     const handleSubmit = async () => {
         try {
             const orderPayload = {
-                storeId: currentStoreId, // Currently relying on prop, or user must select if null
+                storeId: selectedStoreId,
                 customerName: customer.name,
-                customerPhone: customer.customerPhone, // Typo correction in next edit if needed, verifying DTO
-                items: cart.map(i => ({ productSku: i.sku, quantity: i.quantity }))
+                customerPhone: customer.phone,
+                items: cart.map(i => ({ sku: i.sku, quantity: i.quantity }))
             };
-
-            // Fix for phone key mismatch
-            orderPayload.customerPhone = customer.phone;
 
             await createOrder(orderPayload);
             setSuccess('Order created successfully!');
@@ -91,6 +159,9 @@ const PointOfSale = ({ userStoreId }) => { // Expect userStoreId from parent
             setCustomer({ name: '', phone: '' });
             setView('selection');
             setTimeout(() => setSuccess(''), 3000);
+
+            // Reload inventory to reflect updated stock
+            loadInventory(selectedStoreId, searchQuery);
         } catch (err) {
             setError('Failed to create order: ' + (err.response?.data?.message || err.message));
             setView('selection');
@@ -101,7 +172,8 @@ const PointOfSale = ({ userStoreId }) => { // Expect userStoreId from parent
         return (
             <div style={{ background: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '600px', margin: 'auto' }}>
                 <h2>Verify Sale</h2>
-                <p><strong>Customer:</strong> {customer.name} ({customer.phone})</p>
+                <p><strong>Store:</strong> {stores.find(s => s.id === selectedStoreId)?.name || 'Unknown'}</p>
+                <p><strong>Customer:</strong> {customer.name} {customer.phone && `(${customer.phone})`}</p>
                 <hr />
                 <table style={{ width: '100%', marginBottom: '1rem' }}>
                     <thead>
@@ -129,74 +201,166 @@ const PointOfSale = ({ userStoreId }) => { // Expect userStoreId from parent
     }
 
     return (
-        <div style={{ display: 'flex', gap: '2rem', height: '80vh' }}>
-            {/* Left: Inventory */}
-            <div style={{ flex: 2, overflowY: 'auto' }}>
-                <h3>Select Items</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '1rem' }}>
-                    {/* Products */}
-                    {products.map(p => (
-                        <div key={p.id} onClick={() => addToCart(p)} style={{ padding: '10px', border: '1px solid #ddd', borderRadius: '8px', cursor: 'pointer', background: 'white', transition: 'box-shadow 0.2s' }}>
-                            <div style={{ fontWeight: 'bold' }}>{p.name}</div>
-                            <div style={{ color: '#7f8c8d', fontSize: '0.9rem' }}>${p.basePrice}</div>
-                            <div style={{ fontSize: '0.8rem', color: '#bdc3c7' }}>Product</div>
-                        </div>
-                    ))}
-                    {/* Bundles */}
-                    {bundles.map(b => (
-                        <div key={'b' + b.id} onClick={() => addToCart(b, 'BUNDLE')} style={{ padding: '10px', border: '2px solid #3498db', borderRadius: '8px', cursor: 'pointer', background: '#ebf5fb' }}>
-                            <div style={{ fontWeight: 'bold', color: '#2980b9' }}>{b.name}</div>
-                            <div style={{ color: '#7f8c8d', fontSize: '0.9rem' }}>Bundle</div>
-                            <div style={{ fontSize: '0.8rem' }}>Contains {b.items.length} items</div>
-                        </div>
-                    ))}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', height: '85vh' }}>
+            {/* Store Selector & Search */}
+            <div style={{ background: 'white', padding: '1rem', borderRadius: '8px', display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Select Store:</label>
+                    <select
+                        value={selectedStoreId || ''}
+                        onChange={(e) => setSelectedStoreId(Number(e.target.value))}
+                        style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                        disabled={stores.length <= 1}
+                    >
+                        {stores.length === 0 && <option>No stores available</option>}
+                        {stores.map(store => (
+                            <option key={store.id} value={store.id}>{store.name}</option>
+                        ))}
+                    </select>
                 </div>
-            </div>
-
-            {/* Right: Cart & Customer */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'white', padding: '1.5rem', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
-                <h3>Current Sale</h3>
-                {error && <div style={{ color: '#c0392b', marginBottom: '1rem' }}>{error}</div>}
-                {success && <div style={{ color: '#27ae60', marginBottom: '1rem' }}>{success}</div>}
-
-                <div style={{ marginBottom: '1rem' }}>
+                <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Search Inventory:</label>
                     <input
-                        placeholder="Customer Name *"
-                        value={customer.name}
-                        onChange={e => setCustomer({ ...customer, name: e.target.value })}
-                        style={{ width: '100%', padding: '8px', marginBottom: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
-                    />
-                    <input
-                        placeholder="Phone Number (Optional)"
-                        value={customer.phone}
-                        onChange={e => setCustomer({ ...customer, phone: e.target.value })}
+                        type="text"
+                        placeholder="Search by name, SKU..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
                         style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
                     />
                 </div>
+            </div>
 
-                <div style={{ flex: 1, overflowY: 'auto', borderTop: '1px solid #eee', borderBottom: '1px solid #eee', padding: '1rem 0' }}>
-                    {cart.map(item => (
-                        <div key={item.sku} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                            <div>
-                                <div>{item.name}</div>
-                                <div style={{ fontSize: '0.8rem', color: '#95a5a6' }}>${item.basePrice} x {item.quantity}</div>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <span>${(item.basePrice * item.quantity).toFixed(2)}</span>
-                                <button onClick={() => removeFromCart(item.sku)} style={{ background: 'none', border: 'none', color: '#e74c3c', cursor: 'pointer' }}>×</button>
+            {error && <div style={{ color: '#c0392b', background: '#fadbd8', padding: '1rem', borderRadius: '4px' }}>{error}</div>}
+            {success && <div style={{ color: '#27ae60', background: '#d5f4e6', padding: '1rem', borderRadius: '4px' }}>{success}</div>}
+
+            <div style={{ display: 'flex', gap: '1rem', flex: 1, overflow: 'hidden' }}>
+                {/* Left: Inventory Table */}
+                <div style={{ flex: 2, background: 'white', borderRadius: '8px', padding: '1rem', display: 'flex', flexDirection: 'column' }}>
+                    <h3>Available Inventory</h3>
+
+                    {loading && <p>Loading...</p>}
+
+                    {!selectedStoreId && <p style={{ color: '#7f8c8d' }}>Please select a store to view inventory</p>}
+
+                    {selectedStoreId && inventory.length === 0 && !loading && (
+                        <p style={{ color: '#7f8c8d' }}>No inventory found{searchQuery && ' for this search'}</p>
+                    )}
+
+                    {selectedStoreId && inventory.length > 0 && (
+                        <div style={{ flex: 1, overflowY: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                <thead style={{ position: 'sticky', top: 0, background: '#ecf0f1' }}>
+                                    <tr>
+                                        <th style={{ padding: '10px', textAlign: 'left', borderBottom: '2px solid #bdc3c7' }}>SKU</th>
+                                        <th style={{ padding: '10px', textAlign: 'left', borderBottom: '2px solid #bdc3c7' }}>Product Name</th>
+                                        <th style={{ padding: '10px', textAlign: 'right', borderBottom: '2px solid #bdc3c7' }}>Price</th>
+                                        <th style={{ padding: '10px', textAlign: 'right', borderBottom: '2px solid #bdc3c7' }}>Stock</th>
+                                        <th style={{ padding: '10px', textAlign: 'center', borderBottom: '2px solid #bdc3c7' }}>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {inventory.map(stockLevel => (
+                                        <tr key={stockLevel.product.sku} style={{ borderBottom: '1px solid #ecf0f1' }}>
+                                            <td style={{ padding: '10px' }}>{stockLevel.product.sku}</td>
+                                            <td style={{ padding: '10px' }}>{stockLevel.product.name}</td>
+                                            <td style={{ padding: '10px', textAlign: 'right' }}>${stockLevel.product.basePrice}</td>
+                                            <td style={{ padding: '10px', textAlign: 'right', color: stockLevel.quantity > 0 ? '#27ae60' : '#e74c3c' }}>
+                                                {stockLevel.quantity}
+                                            </td>
+                                            <td style={{ padding: '10px', textAlign: 'center' }}>
+                                                <button
+                                                    onClick={() => addToCart(stockLevel)}
+                                                    disabled={stockLevel.quantity === 0}
+                                                    style={{
+                                                        padding: '5px 15px',
+                                                        background: stockLevel.quantity > 0 ? '#3498db' : '#bdc3c7',
+                                                        color: 'white',
+                                                        border: 'none',
+                                                        borderRadius: '4px',
+                                                        cursor: stockLevel.quantity > 0 ? 'pointer' : 'not-allowed'
+                                                    }}
+                                                >
+                                                    Add
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+
+                    {/* Bundles Section */}
+                    {bundles.length > 0 && (
+                        <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '2px solid #ecf0f1' }}>
+                            <h4>Quick Bundles</h4>
+                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                {bundles.map(bundle => (
+                                    <button
+                                        key={bundle.id}
+                                        onClick={() => addBundleToCart(bundle)}
+                                        style={{
+                                            padding: '8px 12px',
+                                            background: '#9b59b6',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            fontSize: '0.9rem'
+                                        }}
+                                    >
+                                        {bundle.name}
+                                    </button>
+                                ))}
                             </div>
                         </div>
-                    ))}
+                    )}
                 </div>
 
-                <div style={{ marginTop: '1rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '1rem' }}>
-                        <span>Total</span>
-                        <span>${calculateTotal().toFixed(2)}</span>
+                {/* Right: Cart & Customer */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'white', padding: '1.5rem', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
+                    <h3>Current Sale</h3>
+
+                    <div style={{ marginBottom: '1rem' }}>
+                        <input
+                            placeholder="Customer Name *"
+                            value={customer.name}
+                            onChange={e => setCustomer({ ...customer, name: e.target.value })}
+                            style={{ width: '100%', padding: '8px', marginBottom: '0.5rem', borderRadius: '4px', border: '1px solid #ddd' }}
+                        />
+                        <input
+                            placeholder="Phone Number (Optional)"
+                            value={customer.phone}
+                            onChange={e => setCustomer({ ...customer, phone: e.target.value })}
+                            style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                        />
                     </div>
-                    <button onClick={handleVerify} style={{ width: '100%', padding: '12px', background: '#2c3e50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '1rem' }}>
-                        Proceed via POS
-                    </button>
+
+                    <div style={{ flex: 1, overflowY: 'auto', borderTop: '1px solid #eee', borderBottom: '1px solid #eee', padding: '1rem 0' }}>
+                        {cart.length === 0 && <p style={{ color: '#95a5a6', textAlign: 'center' }}>Cart is empty</p>}
+                        {cart.map(item => (
+                            <div key={item.sku} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', alignItems: 'center' }}>
+                                <div>
+                                    <div>{item.name}</div>
+                                    <div style={{ fontSize: '0.8rem', color: '#95a5a6' }}>${item.basePrice} x {item.quantity}</div>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <span>${(item.basePrice * item.quantity).toFixed(2)}</span>
+                                    <button onClick={() => removeFromCart(item.sku)} style={{ background: 'none', border: 'none', color: '#e74c3c', cursor: 'pointer', fontSize: '1.5rem' }}>×</button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div style={{ marginTop: '1rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '1rem' }}>
+                            <span>Total</span>
+                            <span>${calculateTotal().toFixed(2)}</span>
+                        </div>
+                        <button onClick={handleVerify} style={{ width: '100%', padding: '12px', background: '#2c3e50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '1rem' }}>
+                            Proceed to Checkout
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
