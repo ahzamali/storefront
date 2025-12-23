@@ -95,4 +95,16 @@ public class OrderLine {
     public void setQuantity(int quantity) {
         this.quantity = quantity;
     }
+
+    public String getProductSku() {
+        return product != null ? product.getSku() : "";
+    }
+
+    public String getProductName() {
+        return product != null ? product.getName() : "";
+    }
+
+    public BigDecimal getPrice() {
+        return unitPrice;
+    }
 }

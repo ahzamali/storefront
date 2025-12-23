@@ -125,7 +125,7 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
             newCart.push({
                 sku: sku,
                 name: isBundle ? bundle.name : product.name,
-                basePrice: isBundle ? bundle.discountPrice : product.basePrice,
+                basePrice: isBundle ? bundle.price : product.basePrice,
                 quantity: 1,
                 product: product,
                 bundle: bundle,
@@ -186,7 +186,7 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
     const handleSubmit = async () => {
         try {
             const orderItems = cart.map(item => ({
-                sku: item.isBundle ? null : item.product.sku,
+                sku: item.isBundle ? item.bundle.sku : item.product.sku,
                 bundleId: item.isBundle ? item.bundle.id : null,
                 quantity: item.quantity
             }));

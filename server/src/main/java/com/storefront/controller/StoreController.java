@@ -70,11 +70,19 @@ public class StoreController {
 
     @PostMapping("/{id}/reconcile")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'STORE_ADMIN', 'ADMIN')")
-    public ResponseEntity<?> reconcile(@PathVariable Long id, @AuthenticationPrincipal UserDetails userDetails) {
+    public ResponseEntity<com.storefront.dto.ReconciliationReportDTO> reconcile(@PathVariable Long id,
+            @RequestParam(required = false, defaultValue = "false") boolean returnStock,
+            @AuthenticationPrincipal UserDetails userDetails) {
         AppUser user = userRepository.findByUsername(userDetails.getUsername())
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-        storeService.reconcileStore(id, user);
-        return ResponseEntity.ok("Reconciled");
+        return ResponseEntity.ok(storeService.reconcileStore(id, returnStock, user));
+    }
+
+    @GetMapping("/{id}/reconciliations")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'STORE_ADMIN', 'ADMIN')")
+    public ResponseEntity<java.util.List<com.storefront.model.ReconciliationLog>> getReconciliationHistory(
+            @PathVariable Long id) {
+        return ResponseEntity.ok(storeService.getReconciliationHistory(id));
     }
 
     @GetMapping

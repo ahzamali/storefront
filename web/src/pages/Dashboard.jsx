@@ -7,6 +7,7 @@ import UserManager from '../components/UserManager';
 import PointOfSale from '../components/PointOfSale';
 import OrderManager from '../components/OrderManager'; // New Import
 
+
 const Dashboard = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -40,6 +41,7 @@ const Dashboard = () => {
                     <Link to="/pos" style={{ padding: '10px', color: 'white', textDecoration: 'none', background: location.pathname === '/pos' ? '#34495e' : 'transparent', borderRadius: '4px' }}>Sale</Link>
                     <Link to="/orders" style={{ padding: '10px', color: 'white', textDecoration: 'none', background: location.pathname === '/orders' ? '#34495e' : 'transparent', borderRadius: '4px' }}>Orders</Link>
 
+
                     {['SUPER_ADMIN', 'ADMIN'].includes(userRole) && (
                         <>
                             <Link to="/stores" style={{ padding: '10px', color: 'white', textDecoration: 'none', background: location.pathname === '/stores' ? '#34495e' : 'transparent', borderRadius: '4px' }}>Stores</Link>
@@ -70,6 +72,7 @@ const Dashboard = () => {
                     <Route path="/" element={<InventoryManager />} />
                     <Route path="/pos" element={<PointOfSale userRole={userRole} />} />
                     <Route path="/orders" element={<OrderManager />} />
+
                     <Route path="/stores" element={<StoreManager />} />
                     <Route path="/users" element={<UserManager />} />
                 </Routes>

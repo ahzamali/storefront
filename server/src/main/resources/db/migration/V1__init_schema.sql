@@ -71,7 +71,9 @@ CREATE TABLE customer_order (
     store_id BIGINT REFERENCES store(id),
     user_id BIGINT REFERENCES app_user(id), -- Employee who processed it
     total_amount DECIMAL(10, 2) NOT NULL,
+    discount DECIMAL(19, 2) DEFAULT 0,
     status VARCHAR(20) DEFAULT 'COMPLETED',
+    reconciled BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

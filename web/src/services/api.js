@@ -37,7 +37,11 @@ export const getStoreInventory = async (storeId, searchQuery = '') => {
 export const createStore = async (name, type) => (await api.post('/stores', { name, type })).data;
 export const allocateStock = async (storeId, items) => await api.post(`/stores/${storeId}/allocate`, { items });
 export const returnStock = async (storeId, items) => await api.post(`/stores/${storeId}/return`, { items });
-export const reconcileStore = async (storeId) => await api.post(`/stores/${storeId}/reconcile`);
+export const reconcileStore = async (storeId, returnStock = false) => {
+    const params = { returnStock };
+    return (await api.post(`/stores/${storeId}/reconcile`, null, { params })).data;
+};
+export const getReconciliationHistory = async (storeId) => (await api.get(`/stores/${storeId}/reconciliations`)).data;
 
 export const getUsers = async () => (await api.get('/auth/users')).data;
 export const register = async (userData) => (await api.post('/auth/register', userData)).data;
@@ -49,6 +53,10 @@ export const createOrder = async (orderData) => (await api.post('/orders', order
 export const getOrders = async (storeId) => {
     const params = storeId ? { storeId } : {};
     return (await api.get('/orders', { params })).data;
+};
+export const getReconciliationReport = async (storeId) => {
+    const params = storeId ? { storeId } : {};
+    return (await api.get('/orders/reconciliation', { params })).data;
 };
 
 export default api;

@@ -6,4 +6,6 @@ import java.util.Optional;
 
 public interface AppUserRepository extends JpaRepository<AppUser, Long> {
     Optional<AppUser> findByUsername(String username);
+
+    java.util.List<AppUser> findByStores_Id(Long storeId);
 }

@@ -1,18 +1,4 @@
-# Prompts
 
-This document contains the prompts used in the application or relevant for the project's development.
-
-## Template
-
-**Purpose:** [Describe what this prompt achieves]
-**Context:** [When is this prompt used?]
-**Variables:**
-- `{{variable_name}}`: [Description of variable]
-
-**Content:**
-```text
-[Insert Prompt Here]
-```
 
 ## Prompt History
 
@@ -71,3 +57,16 @@ The user's main objective is to revert the frontend UI to its previous state, sp
 The user's main objective is to elaborate on the system requirements and identify the different components needed to build the system.
 
 
+### Android Application Development
+So we are done with the UI implementation, however our android application does not have the functionality that we added in the webUI. Lets add all the functionality that are there in the webui in the android application as well. the current state of application is that it build fine but no other functinality is implemented. 
+
+See if we can reuse the object definition across server code and mobile code. 
+We need to implement the inventory management as well as the user management functions in the mobile app. 
+While designing the layout think about usability and asthetics as well.
+
+### report reconciliation of Inventory 
+Alright so out reconciliation function is incomplete, lets complete that. We need to have reconciliation with following information
+1. Each Time a reconciliation is done there should be a report containing total sale, proceeds from the sale, report on returned inventory with references to the items returned, 
+2. This report should be generated for each resonciliation event. 
+3. The report should include the store admin for the virtual store at the time of reconciliation. 
+4. The reconciliation report should be retrievable. We should keep the list of reconciliation report in the Stores page itself 

@@ -77,4 +77,42 @@ public class OrderController {
 
         return ResponseEntity.ok(orderService.searchOrders(customerName, customerPhone, storeIdsParam));
     }
+
+    @GetMapping("/reconciliation")
+    public ResponseEntity<?> getReconciliationReport(
+            @RequestParam(required = false) Long storeId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        // Simple permission check: Admin or specific store they have access to
+        // For now, simplify: if they ask for a store, check access. If not, only Admin
+        // gets global report?
+        // Or if not, they get report for ALL their stores?
+
+        // Let's reuse the logic:
+        AppUser user = userRepository.findByUsername(userDetails.getUsername())
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+        if (storeId != null) {
+            boolean hasAccess = user.getRole() == com.storefront.model.Role.SUPER_ADMIN ||
+                    user.getRole() == com.storefront.model.Role.ADMIN ||
+                    user.getStores().stream().anyMatch(s -> s.getId().equals(storeId));
+            if (!hasAccess) {
+                return ResponseEntity.status(403).body("Access denied to this store");
+            }
+            return ResponseEntity.ok(orderService.getReconciliationReport(storeId));
+        } else {
+            if (user.getRole() == com.storefront.model.Role.SUPER_ADMIN
+                    || user.getRole() == com.storefront.model.Role.ADMIN) {
+                return ResponseEntity.ok(orderService.getReconciliationReport(null));
+            } else {
+                // Return for their FIRST store? Or we need aggregate for list of stores?
+                // Current service only supports 1 store ID or ALL.
+                // Let's just return for the first store they own for MVP.
+                if (user.getStores().isEmpty()) {
+                    return ResponseEntity.ok(new com.storefront.dto.OrderReconciliationSummaryDTO());
+                }
+                return ResponseEntity.ok(orderService.getReconciliationReport(
+                        user.getStores().iterator().next().getId()));
+            }
+        }
+    }
 }

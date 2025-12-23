@@ -167,4 +167,31 @@ public class OrderService {
         return orderRepository.findAll(spec, org.springframework.data.domain.Sort
                 .by(org.springframework.data.domain.Sort.Direction.DESC, "createdAt"));
     }
+
+    public OrderReconciliationSummaryDTO getReconciliationReport(Long storeId) {
+        List<CustomerOrder> orders;
+        if (storeId != null) {
+            orders = orderRepository.findByStoreId(storeId);
+        } else {
+            orders = orderRepository.findAll();
+        }
+
+        long totalCount = orders.size();
+        long reconciledCount = orders.stream().filter(CustomerOrder::isReconciled).count();
+        long unreconciledCount = totalCount - reconciledCount;
+
+        BigDecimal totalAmount = orders.stream()
+                .map(CustomerOrder::getTotalAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal reconciledAmount = orders.stream()
+                .filter(CustomerOrder::isReconciled)
+                .map(CustomerOrder::getTotalAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal unreconciledAmount = totalAmount.subtract(reconciledAmount);
+
+        return new OrderReconciliationSummaryDTO(totalCount, reconciledCount, unreconciledCount,
+                totalAmount, reconciledAmount, unreconciledAmount);
+    }
 }

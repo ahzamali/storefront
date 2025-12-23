@@ -23,6 +23,8 @@ const InventoryManager = () => {
     const canEdit = ['SUPER_ADMIN', 'ADMIN', 'STORE_ADMIN'].includes(normalizedRole);
     console.log('Can Edit:', canEdit);
 
+    const [reconciliationReport, setReconciliationReport] = useState(null);
+
     // Modal states
     const [isBundleModalOpen, setIsBundleModalOpen] = useState(false);
     const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
@@ -164,6 +166,18 @@ const InventoryManager = () => {
         }
     };
 
+    const handleReconcile = async () => {
+        if (!window.confirm("Are you sure you want to reconcile this store? This will return all stock to HQ and generate a report.")) return;
+        try {
+            const report = await reconcileStore(selectedStoreId);
+            setReconciliationReport(report.data);
+            loadInventory();
+            setMessage("Store Reconciled Successfully");
+        } catch (e) {
+            setMessage('Reconciliation failed: ' + (e.response?.data?.message || e.message));
+        }
+    };
+
     // ... (Existing addProduct logic remain same)
     const handleAddProduct = async (e) => {
         e.preventDefault();
@@ -219,6 +233,93 @@ const InventoryManager = () => {
             </div>
 
             {message && <p style={{ padding: '10px', background: '#dff9fb', color: '#27ae60', borderRadius: '5px' }}>{message}</p>}
+
+            {/* Reconciliation Report Modal */}
+            {reconciliationReport && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100
+                }}>
+                    <div style={{ background: 'white', padding: '2rem', borderRadius: '8px', width: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #eee', paddingBottom: '10px' }}>
+                            <h3 style={{ margin: 0 }}>Reconciliation Report: {reconciliationReport.storeName}</h3>
+                            <button onClick={() => setReconciliationReport(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>×</button>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                            <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px' }}>
+                                <h4 style={{ margin: '0 0 10px 0', color: '#2c3e50' }}>Financials</h4>
+                                <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#27ae60' }}>
+                                    Total Revenue: ₹{reconciliationReport.totalRevenue}
+                                </div>
+                                <div>Items Sold: {reconciliationReport.totalItemsSold}</div>
+                            </div>
+                            <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px' }}>
+                                <h4 style={{ margin: '0 0 10px 0', color: '#2c3e50' }}>Assigned Administrators</h4>
+                                <ul style={{ paddingLeft: '20px', margin: 0 }}>
+                                    {reconciliationReport.assignedAdmins.map(admin => (
+                                        <li key={admin}>{admin}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+
+                        <h4 style={{ borderBottom: '1px solid #eee', paddingBottom: '5px' }}>Items Sold</h4>
+                        <table style={{ width: '100%', marginBottom: '20px', fontSize: '0.9rem' }}>
+                            <thead>
+                                <tr style={{ textAlign: 'left', background: '#eee' }}>
+                                    <th style={{ padding: '8px' }}>SKU</th>
+                                    <th style={{ padding: '8px' }}>Name</th>
+                                    <th style={{ padding: '8px' }}>Qty</th>
+                                    <th style={{ padding: '8px' }}>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {reconciliationReport.soldItems.map(item => (
+                                    <tr key={item.sku} style={{ borderBottom: '1px solid #eee' }}>
+                                        <td style={{ padding: '8px' }}>{item.sku}</td>
+                                        <td style={{ padding: '8px' }}>{item.name}</td>
+                                        <td style={{ padding: '8px' }}>{item.quantity}</td>
+                                        <td style={{ padding: '8px' }}>₹{item.total}</td>
+                                    </tr>
+                                ))}
+                                {reconciliationReport.soldItems.length === 0 && <tr><td colSpan="4" style={{ padding: '10px', textAlign: 'center' }}>No items sold</td></tr>}
+                            </tbody>
+                        </table>
+
+                        <h4 style={{ borderBottom: '1px solid #eee', paddingBottom: '5px' }}>Stock Returned to HQ</h4>
+                        <table style={{ width: '100%', marginBottom: '20px', fontSize: '0.9rem' }}>
+                            <thead>
+                                <tr style={{ textAlign: 'left', background: '#eee' }}>
+                                    <th style={{ padding: '8px' }}>SKU</th>
+                                    <th style={{ padding: '8px' }}>Name</th>
+                                    <th style={{ padding: '8px' }}>Qty</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {reconciliationReport.returnedItems.map(item => (
+                                    <tr key={item.sku} style={{ borderBottom: '1px solid #eee' }}>
+                                        <td style={{ padding: '8px' }}>{item.sku}</td>
+                                        <td style={{ padding: '8px' }}>{item.name}</td>
+                                        <td style={{ padding: '8px' }}>{item.quantity}</td>
+                                    </tr>
+                                ))}
+                                {reconciliationReport.returnedItems.length === 0 && <tr><td colSpan="3" style={{ padding: '10px', textAlign: 'center' }}>No items returned</td></tr>}
+                            </tbody>
+                        </table>
+
+                        <button
+                            onClick={() => {
+                                setReconciliationReport(null);
+                                window.print();
+                            }}
+                            style={{ width: '100%', padding: '10px', background: '#2c3e50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                        >
+                            Close & Print
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Bundle Creation Modal */}
             {isBundleModalOpen && (
@@ -446,20 +547,36 @@ const InventoryManager = () => {
 
                     {/* Only show/enable Return at Store View */}
                     {selectedStoreId && (
-                        <button
-                            disabled={selectedItems.size === 0 || !canEdit}
-                            onClick={handleReturnToHQ}
-                            style={{
-                                padding: '8px 16px',
-                                background: (selectedItems.size > 0 && canEdit) ? '#e67e22' : '#bdc3c7',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: (selectedItems.size > 0 && canEdit) ? 'pointer' : 'not-allowed'
-                            }}
-                        >
-                            {canEdit ? 'Return to HQ' : 'Return (Admin Only)'}
-                        </button>
+                        <>
+                            <button
+                                disabled={selectedItems.size === 0 || !canEdit}
+                                onClick={handleReturnToHQ}
+                                style={{
+                                    padding: '8px 16px',
+                                    background: (selectedItems.size > 0 && canEdit) ? '#e67e22' : '#bdc3c7',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: (selectedItems.size > 0 && canEdit) ? 'pointer' : 'not-allowed'
+                                }}
+                            >
+                                {canEdit ? 'Return to HQ' : 'Return (Admin Only)'}
+                            </button>
+                            <button
+                                onClick={handleReconcile}
+                                disabled={!canEdit}
+                                style={{
+                                    padding: '8px 16px',
+                                    background: canEdit ? '#c0392b' : '#bdc3c7',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: canEdit ? 'pointer' : 'not-allowed'
+                                }}
+                            >
+                                {canEdit ? 'Reconcile' : 'Reconcile (Admin Only)'}
+                            </button>
+                        </>
                     )}
                 </div>
             </div>

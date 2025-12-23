@@ -40,6 +40,9 @@ public class CustomerOrder {
     @Column(nullable = false)
     private OrderStatus status = OrderStatus.COMPLETED;
 
+    @Column(nullable = false)
+    private boolean reconciled = false;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -109,6 +112,14 @@ public class CustomerOrder {
 
     public void setStatus(OrderStatus status) {
         this.status = status;
+    }
+
+    public boolean isReconciled() {
+        return reconciled;
+    }
+
+    public void setReconciled(boolean reconciled) {
+        this.reconciled = reconciled;
     }
 
     public LocalDateTime getCreatedAt() {
