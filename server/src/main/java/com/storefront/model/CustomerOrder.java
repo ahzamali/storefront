@@ -17,10 +17,12 @@ public class CustomerOrder {
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "store_id")
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties("currentOwner")
     private Store store;
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "user_id")
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({ "stores", "passwordHash", "role" })
     private AppUser processedBy;
 
     @ManyToOne(optional = true) // Optional for now to support legacy orders without migration if needed, but

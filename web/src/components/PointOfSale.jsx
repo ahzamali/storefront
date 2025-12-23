@@ -44,8 +44,12 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
             const allStores = await getAllStores();
 
             // Filter stores based on user role
+            // Filter stores based on user role
             let availableStores;
-            if (userRole === 'SUPER_ADMIN') {
+            // Normalize role to handle ROLE_ prefix
+            const normalizedRole = userRole ? userRole.replace('ROLE_', '') : '';
+
+            if (normalizedRole === 'SUPER_ADMIN' || normalizedRole === 'ADMIN') {
                 availableStores = allStores;
             } else if (userStoreIds && userStoreIds.length > 0) {
                 availableStores = allStores.filter(s => userStoreIds.includes(s.id));

@@ -134,8 +134,12 @@ public class OrderService {
         stockLevelRepository.save(stock);
     }
 
-    public List<CustomerOrder> searchOrders(String customerName, String customerPhone) {
+    public List<CustomerOrder> searchOrders(String customerName, String customerPhone, List<Long> storeIds) {
         Specification<CustomerOrder> spec = Specification.where(null);
+
+        if (storeIds != null && !storeIds.isEmpty()) {
+            spec = spec.and((root, query, cb) -> root.get("store").get("id").in(storeIds));
+        }
 
         if (customerName != null && !customerName.isEmpty()) {
             spec = spec.and((root, query, cb) -> {

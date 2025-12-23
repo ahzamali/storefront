@@ -16,7 +16,7 @@ function App() {
     <Router>
       <Routes>
         <Route path="/login" element={<Login setToken={setToken} />} />
-        <Route path="/" element={token ? <Dashboard token={token} setToken={setToken} /> : <Navigate to="/login" />} />
+        <Route path="/*" element={token ? <Dashboard token={token} setToken={setToken} /> : <Navigate to="/login" />} />
       </Routes>
     </Router>
   );

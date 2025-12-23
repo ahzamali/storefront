@@ -46,5 +46,6 @@ export const deleteUser = async (id) => await api.delete(`/auth/users/${id}`);
 export const getBundles = async () => (await api.get('/inventory/bundles')).data;
 export const createBundle = async (bundleData) => (await api.post('/inventory/bundles', bundleData)).data;
 export const createOrder = async (orderData) => (await api.post('/orders', orderData)).data;
+export const getOrders = async () => (await api.get('/orders')).data;
 
 export default api;

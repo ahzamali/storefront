@@ -449,7 +449,7 @@ const InventoryManager = () => {
             </div>
 
             <div style={{ marginTop: '1rem', background: 'white', padding: '1rem', borderRadius: '8px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', color: '#333' }}>
                     <thead>
                         <tr style={{ background: '#f8f9fa', userSelect: 'none' }}>
                             <th style={{ padding: '12px', width: '40px', textAlign: 'center' }}>

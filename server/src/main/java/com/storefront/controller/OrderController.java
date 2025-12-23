@@ -35,7 +35,27 @@ public class OrderController {
     @GetMapping
     public ResponseEntity<?> getOrders(
             @RequestParam(required = false) String customerName,
-            @RequestParam(required = false) String customerPhone) {
-        return ResponseEntity.ok(orderService.searchOrders(customerName, customerPhone));
+            @RequestParam(required = false) String customerPhone,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        AppUser user = userRepository.findByUsername(userDetails.getUsername())
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+
+        java.util.List<Long> storeIds = null;
+
+        // If not SUPER_ADMIN, filter by assigned stores
+        if (user.getRole() != com.storefront.model.Role.SUPER_ADMIN
+                && user.getRole() != com.storefront.model.Role.ADMIN) {
+            storeIds = user.getStores().stream()
+                    .map(com.storefront.model.Store::getId)
+                    .collect(java.util.stream.Collectors.toList());
+
+            // If non-admin user has no assigned stores, they see nothing (or empty list)
+            if (storeIds.isEmpty()) {
+                return ResponseEntity.ok(java.util.Collections.emptyList());
+            }
+        }
+
+        return ResponseEntity.ok(orderService.searchOrders(customerName, customerPhone, storeIds));
     }
 }

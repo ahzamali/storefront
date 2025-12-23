@@ -13,6 +13,7 @@ public class OrderLine {
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "order_id")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private CustomerOrder order;
 
     @ManyToOne(optional = false)

@@ -22,7 +22,7 @@ public class Store {
 
     @ManyToOne
     @JoinColumn(name = "current_owner_user_id")
-    @com.fasterxml.jackson.annotation.JsonIgnoreProperties("store")
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties("stores")
     private AppUser currentOwner;
 
     @CreationTimestamp
