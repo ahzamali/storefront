@@ -12,6 +12,14 @@ const InventoryManager = () => {
     const [newProduct, setNewProduct] = useState({ sku: '', name: '', type: 'BOOK', basePrice: '', attributes: {} });
     const [selectedItems, setSelectedItems] = useState(new Set());
 
+    // User Role Logic
+    const userRole = localStorage.getItem('userRole');
+    console.log('Current User Role from LocalStorage:', userRole);
+    // Normalize logic: remove ROLE_ prefix if present to handle both conventions
+    const normalizedRole = userRole ? userRole.replace('ROLE_', '') : '';
+    const canEdit = ['SUPER_ADMIN', 'ADMIN', 'STORE_ADMIN'].includes(normalizedRole);
+    console.log('Can Edit:', canEdit);
+
     // Modal states
     const [isBundleModalOpen, setIsBundleModalOpen] = useState(false);
     const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
@@ -307,49 +315,55 @@ const InventoryManager = () => {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
                 {/* Add Product Form */}
-                <div style={{ background: 'white', padding: '1.5rem', borderRadius: '8px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
-                    <h3>Add New Product</h3>
+                <div style={{ background: 'white', padding: '1.5rem', borderRadius: '8px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', opacity: canEdit ? 1 : 0.6, pointerEvents: canEdit ? 'auto' : 'none' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h3>Add New Product</h3>
+                        {!canEdit && <span style={{ fontSize: '0.8rem', color: '#e74c3c' }}>Admin Only</span>}
+                    </div>
                     <form onSubmit={handleAddProduct} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '1rem' }}>
-                        <input type="text" placeholder="SKU" value={newProduct.sku} onChange={e => setNewProduct({ ...newProduct, sku: e.target.value })} required style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                        <input type="text" placeholder="Name" value={newProduct.name} onChange={e => setNewProduct({ ...newProduct, name: e.target.value })} required style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                        <select value={newProduct.type} onChange={e => setNewProduct({ ...newProduct, type: e.target.value, attributes: {} })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}>
+                        <input disabled={!canEdit} type="text" placeholder="SKU" value={newProduct.sku} onChange={e => setNewProduct({ ...newProduct, sku: e.target.value })} required style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                        <input disabled={!canEdit} type="text" placeholder="Name" value={newProduct.name} onChange={e => setNewProduct({ ...newProduct, name: e.target.value })} required style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                        <select disabled={!canEdit} value={newProduct.type} onChange={e => setNewProduct({ ...newProduct, type: e.target.value, attributes: {} })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}>
                             <option value="BOOK">Book</option>
                             <option value="STATIONERY">Stationery</option>
                         </select>
-                        <input type="number" placeholder="Base Price" value={newProduct.basePrice} onChange={e => setNewProduct({ ...newProduct, basePrice: e.target.value })} required step="0.01" style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                        <input disabled={!canEdit} type="number" placeholder="Base Price" value={newProduct.basePrice} onChange={e => setNewProduct({ ...newProduct, basePrice: e.target.value })} required step="0.01" style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
 
                         {/* Dynamic Attributes */}
                         {newProduct.type === 'BOOK' && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#f8f9fa', padding: '10px', borderRadius: '4px' }}>
                                 <h4>Book Details</h4>
-                                <input type="text" placeholder="Author" value={newProduct.attributes.author || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, author: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                                <input type="text" placeholder="ISBN" value={newProduct.attributes.isbn || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, isbn: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                                <input type="text" placeholder="Publisher" value={newProduct.attributes.publisher || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, publisher: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                                <input disabled={!canEdit} type="text" placeholder="Author" value={newProduct.attributes.author || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, author: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                                <input disabled={!canEdit} type="text" placeholder="ISBN" value={newProduct.attributes.isbn || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, isbn: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                                <input disabled={!canEdit} type="text" placeholder="Publisher" value={newProduct.attributes.publisher || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, publisher: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
                             </div>
                         )}
                         {newProduct.type === 'STATIONERY' && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#f8f9fa', padding: '10px', borderRadius: '4px' }}>
                                 <h4>Stationery Details</h4>
-                                <input type="text" placeholder="Brand" value={newProduct.attributes.brand || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, brand: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                                <input type="text" placeholder="Hardness (e.g. HB)" value={newProduct.attributes.hardness || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, hardness: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                                <input type="text" placeholder="Material" value={newProduct.attributes.material || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, material: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                                <input disabled={!canEdit} type="text" placeholder="Brand" value={newProduct.attributes.brand || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, brand: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                                <input disabled={!canEdit} type="text" placeholder="Hardness (e.g. HB)" value={newProduct.attributes.hardness || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, hardness: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                                <input disabled={!canEdit} type="text" placeholder="Material" value={newProduct.attributes.material || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, material: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
                             </div>
                         )}
 
-                        <button type="submit" style={{ padding: '10px', background: '#3498db', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Create Product</button>
+                        <button disabled={!canEdit} type="submit" style={{ padding: '10px', background: canEdit ? '#3498db' : '#95a5a6', color: 'white', border: 'none', borderRadius: '4px', cursor: canEdit ? 'pointer' : 'not-allowed' }}>Create Product</button>
                     </form>
                 </div>
 
                 {/* Add Stock Form */}
-                <div style={{ background: 'white', padding: '1.5rem', borderRadius: '8px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
-                    <h3>Add Stock {selectedStoreId ? '(to Selected Store)' : '(to HQ)'}</h3>
+                <div style={{ background: 'white', padding: '1.5rem', borderRadius: '8px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', opacity: canEdit ? 1 : 0.6, pointerEvents: canEdit ? 'auto' : 'none' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h3>Add Stock {selectedStoreId ? '(to Selected Store)' : '(to HQ)'}</h3>
+                        {!canEdit && <span style={{ fontSize: '0.8rem', color: '#e74c3c' }}>Admin Only</span>}
+                    </div>
                     <p style={{ fontSize: '0.8rem', color: '#666' }}>
                         Warning: Direct stock addition usually happens at HQ.
                     </p>
                     <form onSubmit={handleAddStock} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '1rem' }}>
-                        <input type="text" placeholder="SKU" value={stock.sku} onChange={e => setStock({ ...stock, sku: e.target.value })} required style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                        <input type="number" placeholder="Quantity" value={stock.quantity} onChange={e => setStock({ ...stock, quantity: e.target.value })} required style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                        <button type="submit" style={{ padding: '10px', background: '#2ecc71', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Add Stock</button>
+                        <input disabled={!canEdit} type="text" placeholder="SKU" value={stock.sku} onChange={e => setStock({ ...stock, sku: e.target.value })} required style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                        <input disabled={!canEdit} type="number" placeholder="Quantity" value={stock.quantity} onChange={e => setStock({ ...stock, quantity: e.target.value })} required style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                        <button disabled={!canEdit} type="submit" style={{ padding: '10px', background: canEdit ? '#2ecc71' : '#95a5a6', color: 'white', border: 'none', borderRadius: '4px', cursor: canEdit ? 'pointer' : 'not-allowed' }}>Add Stock</button>
                     </form>
                 </div>
             </div>
@@ -383,26 +397,50 @@ const InventoryManager = () => {
                         {/* Only allow Bundle Creation at HQ for now to ignore complexity of store-specific bundles */}
                         {!selectedStoreId && (
                             <button
+                                disabled={!canEdit}
                                 onClick={() => setIsBundleModalOpen(true)}
-                                style={{ padding: '8px 16px', background: '#8e44ad', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                style={{
+                                    padding: '8px 16px',
+                                    background: canEdit ? '#8e44ad' : '#bdc3c7',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: canEdit ? 'pointer' : 'not-allowed'
+                                }}
                             >
-                                Create Bundle ({selectedItems.size})
+                                {canEdit ? `Create Bundle (${selectedItems.size})` : 'Create Bundle (Admin Only)'}
                             </button>
                         )}
 
                         {!selectedStoreId ? (
                             <button
+                                disabled={!canEdit}
                                 onClick={() => setIsTransferModalOpen(true)}
-                                style={{ padding: '8px 16px', background: '#3498db', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                style={{
+                                    padding: '8px 16px',
+                                    background: canEdit ? '#3498db' : '#bdc3c7',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: canEdit ? 'pointer' : 'not-allowed'
+                                }}
                             >
-                                Transfer to Store
+                                {canEdit ? 'Transfer to Store' : 'Transfer (Admin Only)'}
                             </button>
                         ) : (
                             <button
+                                disabled={!canEdit}
                                 onClick={handleReturnToHQ}
-                                style={{ padding: '8px 16px', background: '#e67e22', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                style={{
+                                    padding: '8px 16px',
+                                    background: canEdit ? '#e67e22' : '#bdc3c7',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: canEdit ? 'pointer' : 'not-allowed'
+                                }}
                             >
-                                Return to HQ
+                                {canEdit ? 'Return to HQ' : 'Return (Admin Only)'}
                             </button>
                         )}
                     </div>
