@@ -60,7 +60,7 @@ const OrderManager = () => {
 
             {/* Orders Table */}
             <div style={{ overflowX: 'auto', background: 'white', borderRadius: '8px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '20px', color: '#333' }}>
                     <thead>
                         <tr style={{ background: '#f8f9fa', color: '#666', textAlign: 'left', borderBottom: '2px solid #eee' }}>
                             <th style={{ padding: '12px' }}>Order ID</th>

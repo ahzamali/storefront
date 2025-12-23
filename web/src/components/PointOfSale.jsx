@@ -215,7 +215,7 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
                 <p><strong>Store:</strong> {stores.find(s => s.id === selectedStoreId)?.name || 'Unknown'}</p>
                 <p><strong>Customer:</strong> {customer.name} {customer.phone && `(${customer.phone})`}</p>
                 <hr />
-                <table style={{ width: '100%', marginBottom: '1rem' }}>
+                <table style={{ width: '100%', marginBottom: '1rem', color: '#333' }}>
                     <thead>
                         <tr style={{ textAlign: 'left' }}><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>
                     </thead>
@@ -306,7 +306,7 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
 
                     {selectedStoreId && filteredInventory.length > 0 && (
                         <div style={{ flex: 1, overflowY: 'auto' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', color: '#333' }}>
                                 <thead style={{ position: 'sticky', top: 0, background: '#ecf0f1', zIndex: 1 }}>
                                     <tr>
                                         {/* Dynamic Headers */}

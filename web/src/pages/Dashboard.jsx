@@ -68,7 +68,7 @@ const Dashboard = () => {
             <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
                 <Routes>
                     <Route path="/" element={<InventoryManager />} />
-                    <Route path="/pos" element={<PointOfSale />} />
+                    <Route path="/pos" element={<PointOfSale userRole={userRole} />} />
                     <Route path="/orders" element={<OrderManager />} />
                     <Route path="/stores" element={<StoreManager />} />
                     <Route path="/users" element={<UserManager />} />
