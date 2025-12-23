@@ -1,30 +1,26 @@
 version: '3.8'
+
 services:
-  server:
-    build: ./server
-    container_name: storefront-server
+  storefront:
+    image: ghcr.io/ahzamali/storefront-v2:latest
+    container_name: storefront-app
     ports:
       - "8080:8080"
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://storefront-db:5432/storefront
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: password
-      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
-      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
-    depends_on:
-      - postgres
-  postgres:
-    image: postgres:16-alpine
-    container_name: storefront-db
-    environment:
-      POSTGRES_DB: storefront
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    restart: unless-stopped
 
-volumes:
-  postgres-data:
+    # --- Option 1: H2 Database (Default) ---
+    # Persists data to local ./data folder. No extra setup required.
+    volumes:
+      - ./data:/app/data
+
+    # --- Option 2: PostgreSQL (Uncomment to use) ---
+    # 1. Comment out the 'volumes' section above (H2 data)
+    # 2. Uncomment the 'environment' section below
+    # 3. Ensure you have a postgres database running (host: postgres-db)
+    # environment:
+    #   - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/storefront
+    #   - SPRING_DATASOURCE_USERNAME=postgres
+    #   - SPRING_DATASOURCE_PASSWORD=password
+    #   - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
+    #   - SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT=org.hibernate.dialect.PostgreSQLDialect
+
+    restart: unless-stopped
