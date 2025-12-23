@@ -20,7 +20,7 @@ This document lists all the REST APIs available in the StoreFront v2 application
 | :--- | :--- | :--- | :--- | :--- |
 | `POST` | `/products` | Create a new product. | Admin | `{ "sku": "...", "name": "...", "basePrice": ..., "type": "..." }` |
 | `GET` | `/products` | List all global products. | Public | - |
-| `GET` | `/view` | Get aggregated inventory view. | Public | - |
+| `GET` | `/view` | Get aggregated inventory view. | Public | Response: `[ { "id": 1, "sku": "...", "name": "...", "type": "...", "basePrice": ..., "quantity": ..., "attributes": { ... } } ]` |
 | `POST` | `/bundles` | Create a product bundle. | Admin | `{ "sku": "...", "name": "...", "items": [{ "productSku": "...", "quantity": ... }] }` |
 | `POST` | `/stock` | Add stock to Master Store. | Admin | `{ "sku": "...", "quantity": ... }` |
 | `POST` | `/ingest/isbn` | Ingest book details & stock via ISBN. | Admin, Super Admin | `{ "isbn": "...", "quantity": ... }` |
