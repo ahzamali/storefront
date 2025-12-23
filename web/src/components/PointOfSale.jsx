@@ -13,6 +13,8 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [loading, setLoading] = useState(false);
+    const [discountType, setDiscountType] = useState('FIXED'); // FIXED | PERCENTAGE
+    const [discountValue, setDiscountValue] = useState(0);
 
     // Use shared hook for filtering and column management
     const {
@@ -141,7 +143,23 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
     };
 
     const calculateTotal = () => {
-        return cart.reduce((sum, item) => sum + (item.basePrice * item.quantity), 0);
+        const subtotal = cart.reduce((sum, item) => sum + (item.basePrice * item.quantity), 0);
+        let discount = 0;
+        if (discountType === 'FIXED') {
+            discount = parseFloat(discountValue) || 0;
+        } else {
+            discount = subtotal * ((parseFloat(discountValue) || 0) / 100);
+        }
+        return Math.max(0, subtotal - discount);
+    };
+
+    const calculateDiscountAmount = () => {
+        const subtotal = cart.reduce((sum, item) => sum + (item.basePrice * item.quantity), 0);
+        if (discountType === 'FIXED') {
+            return parseFloat(discountValue) || 0;
+        } else {
+            return subtotal * ((parseFloat(discountValue) || 0) / 100);
+        }
     };
 
     const handleVerify = () => {
@@ -173,13 +191,15 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
                 storeId: selectedStoreId,
                 customerName: customer.name,
                 customerPhone: customer.phone,
-                items: orderItems
+                items: orderItems,
+                discount: calculateDiscountAmount()
             };
 
             await createOrder(orderPayload);
             setSuccess('Order created successfully!');
             setCart([]);
             setCustomer({ name: '', phone: '' });
+            setDiscountValue(0);
             setView('selection');
             setTimeout(() => setSuccess(''), 3000);
 
@@ -230,13 +250,17 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
                         ))}
                     </tbody>
                 </table>
-                <h3 style={{ textAlign: 'right' }}>Total: ₹{calculateTotal().toFixed(2)}</h3>
+                <div style={{ textAlign: 'right', marginBottom: '10px' }}>
+                    <p>Subtotal: ₹{cart.reduce((sum, item) => sum + (item.basePrice * item.quantity), 0).toFixed(2)}</p>
+                    <p style={{ color: '#e74c3c' }}>Discount: -₹{calculateDiscountAmount().toFixed(2)}</p>
+                    <h3 style={{ borderTop: '1px solid #ddd', paddingTop: '10px' }}>Total: ₹{calculateTotal().toFixed(2)}</h3>
+                </div>
 
                 <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
                     <button onClick={() => setView('selection')} style={{ flex: 1, padding: '10px', background: '#95a5a6', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Back</button>
                     <button onClick={handleSubmit} style={{ flex: 1, padding: '10px', background: '#27ae60', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Confirm Sale</button>
                 </div>
-            </div>
+            </div >
         );
     }
 
@@ -459,6 +483,31 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
                                 </div>
                             </div>
                         ))}
+                    </div>
+
+                    {/* Discount Control */}
+                    <div style={{ padding: '10px 0', borderBottom: '1px solid #eee' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', fontWeight: 'bold' }}>
+                            <span>Discount</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '5px' }}>
+                            <select
+                                value={discountType}
+                                onChange={(e) => setDiscountType(e.target.value)}
+                                style={{ padding: '5px', borderRadius: '4px', border: '1px solid #ddd' }}
+                            >
+                                <option value="FIXED">Fixed (₹)</option>
+                                <option value="PERCENTAGE">%</option>
+                            </select>
+                            <input
+                                type="number"
+                                min="0"
+                                value={discountValue}
+                                onChange={(e) => setDiscountValue(e.target.value)}
+                                style={{ flex: 1, padding: '5px', borderRadius: '4px', border: '1px solid #ddd' }}
+                            />
+                        </div>
+                        {parseFloat(discountValue) > 0 && <div style={{ textAlign: 'right', fontSize: '0.8rem', color: '#e74c3c', marginTop: '4px' }}>- ₹{calculateDiscountAmount().toFixed(2)}</div>}
                     </div>
 
                     <div style={{ marginTop: '1rem' }}>

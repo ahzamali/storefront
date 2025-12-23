@@ -96,6 +96,7 @@ const OrderManager = () => {
                             <th style={{ padding: '12px' }}>Customer</th>
                             <th style={{ padding: '12px' }}>Items</th>
                             <th style={{ padding: '12px' }}>Total Amount</th>
+                            <th style={{ padding: '12px' }}>Discount</th>
                             <th style={{ padding: '12px' }}>Status</th>
                         </tr>
                     </thead>
@@ -128,6 +129,9 @@ const OrderManager = () => {
                                         ) : '-'}
                                     </td>
                                     <td style={{ padding: '12px', fontWeight: 'bold' }}>₹{order.totalAmount}</td>
+                                    <td style={{ padding: '12px', color: '#e74c3c' }}>
+                                        {order.discount && order.discount > 0 ? `-₹${order.discount}` : '-'}
+                                    </td>
                                     <td style={{ padding: '12px' }}>
                                         <span style={{
                                             background: order.status === 'COMPLETED' ? '#d4edda' : '#fff3cd',

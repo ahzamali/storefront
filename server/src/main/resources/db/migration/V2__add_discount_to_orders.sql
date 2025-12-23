@@ -1,0 +1,1 @@
+ALTER TABLE customer_order ADD COLUMN discount DECIMAL(19,2) DEFAULT 0;

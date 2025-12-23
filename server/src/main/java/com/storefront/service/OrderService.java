@@ -101,6 +101,14 @@ public class OrderService {
             }
         }
 
+        if (request.getDiscount() != null) {
+            order.setDiscount(request.getDiscount());
+            totalAmount = totalAmount.subtract(request.getDiscount());
+            if (totalAmount.compareTo(BigDecimal.ZERO) < 0) {
+                totalAmount = BigDecimal.ZERO;
+            }
+        }
+
         order.setTotalAmount(totalAmount);
         orderLineRepository.saveAll(lines);
         // Handle Customer Linking

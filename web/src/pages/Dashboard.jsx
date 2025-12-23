@@ -37,7 +37,7 @@ const Dashboard = () => {
 
                 <nav style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <Link to="/" style={{ padding: '10px', color: 'white', textDecoration: 'none', background: location.pathname === '/' ? '#34495e' : 'transparent', borderRadius: '4px' }}>Inventory</Link>
-                    <Link to="/pos" style={{ padding: '10px', color: 'white', textDecoration: 'none', background: location.pathname === '/pos' ? '#34495e' : 'transparent', borderRadius: '4px' }}>Point of Sale</Link>
+                    <Link to="/pos" style={{ padding: '10px', color: 'white', textDecoration: 'none', background: location.pathname === '/pos' ? '#34495e' : 'transparent', borderRadius: '4px' }}>Sale</Link>
                     <Link to="/orders" style={{ padding: '10px', color: 'white', textDecoration: 'none', background: location.pathname === '/orders' ? '#34495e' : 'transparent', borderRadius: '4px' }}>Orders</Link>
 
                     {['SUPER_ADMIN', 'ADMIN'].includes(userRole) && (
