@@ -9,6 +9,7 @@ const OrderManager = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [viewOrder, setViewOrder] = useState(null); // Selected order for detail view
 
     useEffect(() => {
         loadStores();
@@ -98,6 +99,7 @@ const OrderManager = () => {
                             <th style={{ padding: '12px' }}>Total Amount</th>
                             <th style={{ padding: '12px' }}>Discount</th>
                             <th style={{ padding: '12px' }}>Status</th>
+                            <th style={{ padding: '12px' }}>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -143,16 +145,135 @@ const OrderManager = () => {
                                             {order.status}
                                         </span>
                                     </td>
+                                    <td style={{ padding: '12px' }}>
+                                        <button
+                                            onClick={() => setViewOrder(order)}
+                                            style={{
+                                                padding: '5px 10px',
+                                                background: '#3498db',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '4px',
+                                                cursor: 'pointer',
+                                                fontSize: '0.9em'
+                                            }}
+                                        >
+                                            View
+                                        </button>
+                                    </td>
                                 </tr>
                             ))
                         ) : (
                             <tr>
-                                <td colSpan="7" style={{ padding: '20px', textAlign: 'center', color: '#888' }}>No orders found.</td>
+                                <td colSpan="9" style={{ padding: '20px', textAlign: 'center', color: '#888' }}>No orders found.</td>
                             </tr>
                         )}
                     </tbody>
                 </table>
             </div>
+
+            {/* Order Detail Modal */}
+            {viewOrder && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: 'rgba(0,0,0,0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1000
+                }}>
+                    <div style={{
+                        background: 'white',
+                        padding: '20px',
+                        borderRadius: '8px',
+                        width: '80%',
+                        maxWidth: '800px',
+                        maxHeight: '90vh',
+                        overflowY: 'auto',
+                        boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
+                        textAlign: 'left' // Explicit left alignment
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid #eee', paddingBottom: '10px' }}>
+                            <h3 style={{ margin: 0, color: '#333' }}>Order #{viewOrder.id}</h3>
+                            <button
+                                onClick={() => setViewOrder(null)}
+                                style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: '#666' }}
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px', textAlign: 'left' }}>
+                            <div>
+                                <h4 style={{ color: '#555', marginBottom: '10px' }}>Order Info</h4>
+                                <p style={{ margin: '5px 0', color: '#333' }}><strong>Date:</strong> {new Date(viewOrder.createdAt).toLocaleString()}</p>
+                                <p style={{ margin: '5px 0', color: '#333' }}><strong>Status:</strong> {viewOrder.status}</p>
+                                <p style={{ margin: '5px 0', color: '#333' }}><strong>Store:</strong> {viewOrder.store.name}</p>
+                            </div>
+                            <div>
+                                <h4 style={{ color: '#555', marginBottom: '10px' }}>Customer Info</h4>
+                                <p style={{ margin: '5px 0', color: '#333' }}><strong>Name:</strong> {viewOrder.customer ? viewOrder.customer.name : 'Guest'}</p>
+                                <p style={{ margin: '5px 0', color: '#333' }}><strong>Phone:</strong> {viewOrder.customer ? viewOrder.customer.phone : '-'}</p>
+                            </div>
+                        </div>
+
+                        <h4 style={{ color: '#555', marginBottom: '10px', textAlign: 'left' }}>Items</h4>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px', color: '#333', border: '1px solid #eee' }}>
+                            <thead style={{ background: '#f8f9fa' }}>
+                                <tr>
+                                    <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Item</th>
+                                    <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>SKU</th>
+                                    <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Qty</th>
+                                    <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Price</th>
+                                    <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #ddd' }}>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {viewOrder.orderLines && viewOrder.orderLines.map((line, idx) => (
+                                    <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
+                                        <td style={{ padding: '10px' }}>
+                                            {line.product ? line.product.name : (line.bundle ? line.bundle.name + ' (Bundle)' : 'Unknown')}
+                                        </td>
+                                        <td style={{ padding: '10px' }}>
+                                            {line.product ? line.product.sku : (line.bundle ? 'BUNDLE' : '-')}
+                                        </td>
+                                        <td style={{ padding: '10px', textAlign: 'left' }}>{line.quantity}</td>
+                                        <td style={{ padding: '10px', textAlign: 'left' }}>₹{line.price}</td>
+                                        <td style={{ padding: '10px', textAlign: 'left' }}>₹{(line.price * line.quantity).toFixed(2)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+
+                        <div style={{ textAlign: 'left', borderTop: '1px solid #eee', paddingTop: '15px' }}>
+                            {viewOrder.discount && viewOrder.discount > 0 && (
+                                <p style={{ margin: '5px 0', color: '#e74c3c' }}>Discount: -₹{viewOrder.discount}</p>
+                            )}
+                            <h3 style={{ margin: '10px 0', color: '#333' }}>Total: ₹{viewOrder.totalAmount}</h3>
+                        </div>
+
+                        <div style={{ textAlign: 'left', marginTop: '20px' }}>
+                            <button
+                                onClick={() => setViewOrder(null)}
+                                style={{
+                                    padding: '10px 20px',
+                                    background: '#95a5a6',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
