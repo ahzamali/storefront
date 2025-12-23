@@ -69,7 +69,7 @@ const StoreManager = () => {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
                 {stores.map(store => (
-                    <div key={store.id} style={{ background: 'white', padding: '1.5rem', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+                    <div key={store.id} style={{ background: 'white', padding: '1.5rem', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', color: '#333' }}>
                         <h3>{store.name}</h3>
                         <span style={{ fontSize: '0.8rem', color: '#888' }}>{store.type}</span>
 
