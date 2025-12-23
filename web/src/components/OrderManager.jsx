@@ -242,8 +242,8 @@ const OrderManager = () => {
                                             {line.product ? line.product.sku : (line.bundle ? 'BUNDLE' : '-')}
                                         </td>
                                         <td style={{ padding: '10px', textAlign: 'left' }}>{line.quantity}</td>
-                                        <td style={{ padding: '10px', textAlign: 'left' }}>₹{line.price}</td>
-                                        <td style={{ padding: '10px', textAlign: 'left' }}>₹{(line.price * line.quantity).toFixed(2)}</td>
+                                        <td style={{ padding: '10px', textAlign: 'left' }}>₹{line.unitPrice}</td>
+                                        <td style={{ padding: '10px', textAlign: 'left' }}>₹{(line.unitPrice * line.quantity).toFixed(2)}</td>
                                     </tr>
                                 ))}
                             </tbody>
