@@ -72,12 +72,19 @@ public class InventoryService {
                 return stockLevelRepository.save(stockLevel);
         }
 
-        public List<com.storefront.dto.ProductStockDTO> getInventoryView() {
-                Store masterStore = storeRepository.findFirstByType(Store.StoreType.MASTER)
-                                .orElseThrow(() -> new IllegalStateException("Master Store not found initialized"));
+        public List<com.storefront.dto.ProductStockDTO> getInventoryView(Long storeId) {
+                Long targetStoreId;
+                if (storeId == null) {
+                        Store masterStore = storeRepository.findFirstByType(Store.StoreType.MASTER)
+                                        .orElseThrow(() -> new IllegalStateException(
+                                                        "Master Store not found initialized"));
+                        targetStoreId = masterStore.getId();
+                } else {
+                        targetStoreId = storeId;
+                }
 
                 List<Product> products = productRepository.findAll();
-                List<StockLevel> stocks = stockLevelRepository.findByStoreId(masterStore.getId());
+                List<StockLevel> stocks = stockLevelRepository.findByStoreId(targetStoreId);
 
                 // Map product ID to stock quantity for efficient lookup
                 java.util.Map<Long, Integer> stockMap = stocks.stream()
@@ -94,6 +101,10 @@ public class InventoryService {
                                                 p.getBasePrice(),
                                                 stockMap.getOrDefault(p.getId(), 0)))
                                 .collect(java.util.stream.Collectors.toList());
+        }
+
+        public List<com.storefront.dto.ProductStockDTO> getInventoryView() {
+                return getInventoryView(null);
         }
 
         public Product ingestBook(String isbn, int quantity) {

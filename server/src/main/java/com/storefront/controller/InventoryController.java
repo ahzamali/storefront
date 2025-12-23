@@ -34,8 +34,8 @@ public class InventoryController {
 
     @GetMapping("/view")
     @PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_STORE_ADMIN', 'ROLE_EMPLOYEE')")
-    public ResponseEntity<?> getInventoryView() {
-        return ResponseEntity.ok(inventoryService.getInventoryView());
+    public ResponseEntity<?> getInventoryView(@RequestParam(required = false) Long storeId) {
+        return ResponseEntity.ok(inventoryService.getInventoryView(storeId));
     }
 
     @PostMapping("/bundles")

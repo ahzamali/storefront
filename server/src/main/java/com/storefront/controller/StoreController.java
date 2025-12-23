@@ -52,6 +52,16 @@ public class StoreController {
         return ResponseEntity.ok("Allocated");
     }
 
+    @PostMapping("/{id}/return")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'STORE_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> returnStock(@PathVariable Long id, @RequestBody AllocationRequestDTO request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        AppUser user = userRepository.findByUsername(userDetails.getUsername())
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        storeService.returnStock(id, request, user);
+        return ResponseEntity.ok("Returned");
+    }
+
     @GetMapping("/{storeId}/inventory")
     public ResponseEntity<List<StockLevel>> getStoreInventory(@PathVariable Long storeId,
             @RequestParam(required = false) String search) {

@@ -20,7 +20,10 @@ export const login = async (username, password) => {
 
 export const getProducts = async () => (await api.get('/inventory/products')).data;
 export const getAllProducts = getProducts; // Alias for consistency
-export const getInventoryView = async () => (await api.get('/inventory/view')).data;
+export const getInventoryView = async (storeId) => {
+    const params = storeId ? { storeId } : {};
+    return (await api.get('/inventory/view', { params })).data;
+};
 export const addProduct = async (product) => (await api.post('/inventory/products', product)).data;
 export const addStock = async (sku, quantity) => (await api.post('/inventory/stock', { sku, quantity })).data;
 // Store management
@@ -33,6 +36,7 @@ export const getStoreInventory = async (storeId, searchQuery = '') => {
 
 export const createStore = async (name, type) => (await api.post('/stores', { name, type })).data;
 export const allocateStock = async (storeId, items) => await api.post(`/stores/${storeId}/allocate`, { items });
+export const returnStock = async (storeId, items) => await api.post(`/stores/${storeId}/return`, { items });
 export const reconcileStore = async (storeId) => await api.post(`/stores/${storeId}/reconcile`);
 
 export const getUsers = async () => (await api.get('/auth/users')).data;
@@ -40,6 +44,7 @@ export const register = async (userData) => (await api.post('/auth/register', us
 export const deleteUser = async (id) => await api.delete(`/auth/users/${id}`);
 
 export const getBundles = async () => (await api.get('/inventory/bundles')).data;
+export const createBundle = async (bundleData) => (await api.post('/inventory/bundles', bundleData)).data;
 export const createOrder = async (orderData) => (await api.post('/orders', orderData)).data;
 
 export default api;

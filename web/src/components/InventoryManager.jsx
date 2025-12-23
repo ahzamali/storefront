@@ -1,12 +1,24 @@
 import { useState, useEffect } from 'react';
-import { getInventoryView, addProduct, addStock } from '../services/api';
+import { getInventoryView, addProduct, addStock, getBundles, createBundle, getStores, allocateStock, returnStock } from '../services/api';
 import useInventoryFilter from '../hooks/useInventoryFilter';
 
 const InventoryManager = () => {
     const [products, setProducts] = useState([]);
-    const [newProduct, setNewProduct] = useState({ sku: '', name: '', type: 'BOOK', basePrice: '', attributes: {} });
+    const [bundles, setBundles] = useState([]);
+    const [stores, setStores] = useState([]);
+    const [selectedStoreId, setSelectedStoreId] = useState(''); // '' means HQ
     const [stock, setStock] = useState({ sku: '', quantity: '' });
     const [message, setMessage] = useState('');
+    const [newProduct, setNewProduct] = useState({ sku: '', name: '', type: 'BOOK', basePrice: '', attributes: {} });
+    const [selectedItems, setSelectedItems] = useState(new Set());
+
+    // Modal states
+    const [isBundleModalOpen, setIsBundleModalOpen] = useState(false);
+    const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+    const [transferTargetStore, setTransferTargetStore] = useState('');
+    const [transferQty, setTransferQty] = useState(1); // Simple global qty for now
+
+    const [newBundle, setNewBundle] = useState({ name: '', description: '', price: '' });
 
     // Use shared hook for filtering and column management
     const {
@@ -15,36 +27,145 @@ const InventoryManager = () => {
         visibleColumns, toggleColumn,
         isColumnSelectorOpen, setIsColumnSelectorOpen,
         filteredItems: filteredProducts
-    } = useInventoryFilter(products);
+    } = useInventoryFilter([...products, ...bundles]);
 
     useEffect(() => {
-        loadProducts();
-    }, []);
+        loadInventory();
+        loadStores();
+    }, [selectedStoreId]); // Reload when store changes
 
-    const loadProducts = async () => {
+    const loadStores = async () => {
         try {
-            const data = await getInventoryView();
-            setProducts(data);
+            const data = await getStores();
+            setStores(data);
         } catch (e) {
-            console.error("Failed to load products");
+            console.error("Failed to load stores");
         }
     }
 
+    const loadInventory = async () => {
+        try {
+            const [prodData, bundleData] = await Promise.all([
+                getInventoryView(selectedStoreId || null),
+                getBundles()
+            ]);
+            setProducts(prodData);
+            // Mark bundles for visual distinction
+            setBundles(bundleData.map(b => ({ ...b, type: 'BUNDLE', quantity: 'N/A' })));
+        } catch (e) {
+            console.error("Failed to load inventory", e);
+            setMessage("Failed to load inventory");
+        }
+    }
+
+    const toggleSelection = (sku) => {
+        const newSet = new Set(selectedItems);
+        if (newSet.has(sku)) {
+            newSet.delete(sku);
+        } else {
+            newSet.add(sku);
+        }
+        setSelectedItems(newSet);
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedItems.size === filteredProducts.length) {
+            setSelectedItems(new Set());
+        } else {
+            const allSkus = new Set(filteredProducts.map(p => p.sku));
+            setSelectedItems(allSkus);
+        }
+    };
+
+    const handleCreateBundle = async (e) => {
+        e.preventDefault();
+        try {
+            const items = Array.from(selectedItems).map(sku => {
+                // Determine if it's a product (bundles cannot be nested in bundles for now per typical logic, or if they can, we assume flat sku list)
+                // We'll just pass SKU and quantity 1 for now as simplified MVP
+                // Ideally we might want to ask quantity per item
+                return { productSku: sku, quantity: 1 };
+            });
+
+            const payload = {
+                sku: 'BNDL-' + Math.random().toString(36).substr(2, 6).toUpperCase(),
+                name: newBundle.name,
+                description: newBundle.description,
+                price: parseFloat(newBundle.price),
+                items: items
+            };
+
+            await createBundle(payload);
+            setMessage('Bundle created successfully');
+            setIsBundleModalOpen(false);
+            setNewBundle({ name: '', description: '', price: '' });
+            setSelectedItems(new Set());
+            loadInventory();
+        } catch (err) {
+            console.error(err);
+            setMessage('Failed to create bundle');
+        }
+    };
+
+    const handleTransfer = async () => {
+        if (!selectedStoreId && !transferTargetStore) {
+            alert("Please select a target store");
+            return;
+        }
+
+        try {
+            const items = Array.from(selectedItems).map(sku => ({ sku, quantity: parseInt(transferQty) }));
+
+            if (!selectedStoreId) {
+                // HQ -> Store
+                await allocateStock(transferTargetStore, items);
+                setMessage("Transferred to store successfully");
+            } else {
+                // Store -> HQ (Return)
+                // Logic: Button should trigger this directly without modal if it's return? 
+                // Or maybe reuse generic transfer logic?
+                // Let's implement Return separately below
+            }
+
+            setIsTransferModalOpen(false);
+            setSelectedItems(new Set());
+            loadInventory();
+        } catch (e) {
+            setMessage('Transfer failed: ' + (e.response?.data?.message || e.message));
+        }
+    };
+
+    const handleReturnToHQ = async () => {
+        if (!window.confirm("Return selected items to HQ?")) return;
+        try {
+            // For return, we also need quantity. For now assume 1 or ask? 
+            // Let's assume 1 for simplicity of this MVP button, or prompt
+            const qty = prompt("Quantity to return per item:", "1");
+            if (!qty) return;
+
+            const items = Array.from(selectedItems).map(sku => ({ sku, quantity: parseInt(qty) }));
+            await returnStock(selectedStoreId, items);
+            setMessage("Returned stock to HQ");
+            setSelectedItems(new Set());
+            loadInventory();
+        } catch (e) {
+            setMessage('Return failed: ' + (e.response?.data?.message || e.message));
+        }
+    };
+
+    // ... (Existing addProduct logic remain same)
     const handleAddProduct = async (e) => {
         e.preventDefault();
         try {
-            // Map FRONTEND type to BACKEND type if needed
-            // Backend expects 'BOOK', 'PENCIL' (for stationery), 'APPAREL'
-            // Frontend 'STATIONERY' maps to 'PENCIL'
             const payload = { ...newProduct };
             if (payload.type === 'STATIONERY') {
-                payload.type = 'PENCIL'; // Internal backend mapping
+                payload.type = 'PENCIL';
             }
 
             await addProduct(payload);
             setMessage('Product created successfully');
             setNewProduct({ sku: '', name: '', type: 'BOOK', basePrice: '', attributes: {} });
-            loadProducts();
+            loadInventory();
         } catch (err) {
             setMessage('Failed to create product');
         }
@@ -56,18 +177,133 @@ const InventoryManager = () => {
             await addStock(stock.sku, parseInt(stock.quantity));
             setMessage(`Stock added for ${stock.sku}`);
             setStock({ sku: '', quantity: '' });
-            loadProducts();
+            loadInventory();
         } catch (err) {
             setMessage('Failed to add stock');
         }
     };
 
-
-
     return (
         <div>
-            <h2>Inventory Management (Headquarters)</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2>Inventory Management</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <strong>View Store:</strong>
+                    <select
+                        value={selectedStoreId}
+                        onChange={e => setSelectedStoreId(e.target.value)}
+                        style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                    >
+                        <option value="">Headquarters (Master)</option>
+                        {stores.map(s => (
+                            <option key={s.id} value={s.id}>{s.name} ({s.type})</option>
+                        ))}
+                    </select>
+                </div>
+            </div>
+
             {message && <p style={{ padding: '10px', background: '#dff9fb', color: '#27ae60', borderRadius: '5px' }}>{message}</p>}
+
+            {/* Bundle Creation Modal */}
+            {isBundleModalOpen && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+                }}>
+                    <div style={{ background: 'white', padding: '2rem', borderRadius: '8px', width: '400px' }}>
+                        <h3>Create Bundle</h3>
+                        <p>{selectedItems.size} items selected</p>
+
+                        {/* bundling logic helper */}
+                        {(() => {
+                            const selectedProductObjects = filteredProducts.filter(p => selectedItems.has(p.sku));
+                            const totalPrice = selectedProductObjects.reduce((sum, p) => sum + (parseFloat(p.basePrice || p.price) || 0), 0);
+
+                            return (
+                                <div style={{ marginBottom: '10px', fontSize: '0.9rem', color: '#555' }}>
+                                    <strong>Total Item Price: </strong> ₹{totalPrice.toFixed(2)}
+                                </div>
+                            );
+                        })()}
+
+                        <form onSubmit={handleCreateBundle} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <input type="text" placeholder="Bundle Name" value={newBundle.name} onChange={e => setNewBundle({ ...newBundle, name: e.target.value })} required style={{ padding: '8px', border: '1px solid #ddd' }} />
+                            <input type="text" placeholder="Description" value={newBundle.description} onChange={e => setNewBundle({ ...newBundle, description: e.target.value })} style={{ padding: '8px', border: '1px solid #ddd' }} />
+
+                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: '4px' }}>Discount (%)</label>
+                                    <input
+                                        type="number"
+                                        min="0" max="100"
+                                        placeholder="0%"
+                                        onChange={e => {
+                                            const discount = parseFloat(e.target.value) || 0;
+                                            const selectedProductObjects = filteredProducts.filter(p => selectedItems.has(p.sku));
+                                            const totalPrice = selectedProductObjects.reduce((sum, p) => sum + (parseFloat(p.basePrice || p.price) || 0), 0);
+                                            const discountedPrice = totalPrice * (1 - discount / 100);
+                                            setNewBundle({ ...newBundle, price: discountedPrice.toFixed(2) });
+                                        }}
+                                        style={{ width: '100%', padding: '8px', border: '1px solid #ddd' }}
+                                    />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: '4px' }}>Final Price</label>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        placeholder="Price"
+                                        value={newBundle.price}
+                                        onChange={e => setNewBundle({ ...newBundle, price: e.target.value })}
+                                        required
+                                        style={{ width: '100%', padding: '8px', border: '1px solid #ddd' }}
+                                    />
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                                <button type="submit" style={{ flex: 1, height: '40px', padding: '0 10px', background: '#2ecc71', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Create</button>
+                                <button type="button" onClick={() => setIsBundleModalOpen(false)} style={{ flex: 1, height: '40px', padding: '0 10px', background: '#95a5a6', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Transfer Modal (HQ -> Store) */}
+            {isTransferModalOpen && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+                }}>
+                    <div style={{ background: 'white', padding: '2rem', borderRadius: '8px', width: '400px' }}>
+                        <h3>Transfer Stock to Store</h3>
+                        <p>{selectedItems.size} items selected</p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <select
+                                value={transferTargetStore}
+                                onChange={e => setTransferTargetStore(e.target.value)}
+                                style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                            >
+                                <option value="">Select Target Store...</option>
+                                {stores.filter(s => s.type !== 'MASTER').map(s => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                ))}
+                            </select>
+                            <input
+                                type="number" min="1" placeholder="Quantity per item"
+                                value={transferQty}
+                                onChange={e => setTransferQty(e.target.value)}
+                                style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                            />
+                            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                                <button onClick={handleTransfer} style={{ flex: 1, height: '40px', padding: '0 10px', background: '#3498db', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Transfer</button>
+                                <button onClick={() => setIsTransferModalOpen(false)} style={{ flex: 1, height: '40px', padding: '0 10px', background: '#95a5a6', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
                 {/* Add Product Form */}
@@ -106,7 +342,10 @@ const InventoryManager = () => {
 
                 {/* Add Stock Form */}
                 <div style={{ background: 'white', padding: '1.5rem', borderRadius: '8px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
-                    <h3>Add Stock</h3>
+                    <h3>Add Stock {selectedStoreId ? '(to Selected Store)' : '(to HQ)'}</h3>
+                    <p style={{ fontSize: '0.8rem', color: '#666' }}>
+                        Warning: Direct stock addition usually happens at HQ.
+                    </p>
                     <form onSubmit={handleAddStock} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '1rem' }}>
                         <input type="text" placeholder="SKU" value={stock.sku} onChange={e => setStock({ ...stock, sku: e.target.value })} required style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
                         <input type="number" placeholder="Quantity" value={stock.quantity} onChange={e => setStock({ ...stock, quantity: e.target.value })} required style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
@@ -115,33 +354,72 @@ const InventoryManager = () => {
                 </div>
             </div>
 
-            {/* Search Bar */}
-            <div style={{ marginBottom: '1rem', background: 'white', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center' }}>
-                <select
-                    value={searchField}
-                    onChange={e => setSearchField(e.target.value)}
-                    style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd', marginRight: '10px' }}
-                >
-                    <option value="all">All</option>
-                    <option value="name">Name</option>
-                    <option value="sku">SKU</option>
-                    <option value="author">Author</option>
-                    <option value="isbn">ISBN</option>
-                    <option value="brand">Brand</option>
-                </select>
-                <input
-                    type="text"
-                    placeholder="Search..."
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd', width: '300px' }}
-                />
+            {/* Search Bar & Actions */}
+            <div style={{ marginBottom: '1rem', background: 'white', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <select
+                        value={searchField}
+                        onChange={e => setSearchField(e.target.value)}
+                        style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd', marginRight: '10px' }}
+                    >
+                        <option value="all">All</option>
+                        <option value="name">Name</option>
+                        <option value="sku">SKU</option>
+                        <option value="author">Author</option>
+                        <option value="isbn">ISBN</option>
+                        <option value="brand">Brand</option>
+                    </select>
+                    <input
+                        type="text"
+                        placeholder="Search..."
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd', width: '300px' }}
+                    />
+                </div>
+
+                {selectedItems.size > 0 && (
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                        {/* Only allow Bundle Creation at HQ for now to ignore complexity of store-specific bundles */}
+                        {!selectedStoreId && (
+                            <button
+                                onClick={() => setIsBundleModalOpen(true)}
+                                style={{ padding: '8px 16px', background: '#8e44ad', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                            >
+                                Create Bundle ({selectedItems.size})
+                            </button>
+                        )}
+
+                        {!selectedStoreId ? (
+                            <button
+                                onClick={() => setIsTransferModalOpen(true)}
+                                style={{ padding: '8px 16px', background: '#3498db', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                            >
+                                Transfer to Store
+                            </button>
+                        ) : (
+                            <button
+                                onClick={handleReturnToHQ}
+                                style={{ padding: '8px 16px', background: '#e67e22', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                            >
+                                Return to HQ
+                            </button>
+                        )}
+                    </div>
+                )}
             </div>
 
             <div style={{ marginTop: '1rem', background: 'white', padding: '1rem', borderRadius: '8px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
                         <tr style={{ background: '#f8f9fa', userSelect: 'none' }}>
+                            <th style={{ padding: '12px', width: '40px', textAlign: 'center' }}>
+                                <input
+                                    type="checkbox"
+                                    onChange={toggleSelectAll}
+                                    checked={filteredProducts.length > 0 && selectedItems.size === filteredProducts.length}
+                                />
+                            </th>
                             {visibleColumns.sku && <th style={{ padding: '12px', textAlign: 'left' }}>SKU</th>}
                             {visibleColumns.name && <th style={{ padding: '12px', textAlign: 'left' }}>Name</th>}
                             {visibleColumns.price && <th style={{ padding: '12px', textAlign: 'left' }}>Price</th>}
@@ -190,11 +468,28 @@ const InventoryManager = () => {
                     </thead>
                     <tbody>
                         {filteredProducts.map(p => (
-                            <tr key={p.id} style={{ borderBottom: '1px solid #eee' }}>
+                            <tr key={p.id || p.sku} style={{ borderBottom: '1px solid #eee', background: p.type === 'BUNDLE' ? '#fbf7ff' : 'white' }}>
+                                <td style={{ padding: '12px', textAlign: 'center' }}>
+                                    {p.type !== 'BUNDLE' && (
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedItems.has(p.sku)}
+                                            onChange={() => toggleSelection(p.sku)}
+                                        />
+                                    )}
+                                </td>
                                 {visibleColumns.sku && <td style={{ padding: '12px' }}>{p.sku}</td>}
                                 {visibleColumns.name && <td style={{ padding: '12px' }}>{p.name}</td>}
                                 {visibleColumns.price && <td style={{ padding: '12px' }}>₹{p.basePrice || p.price}</td>}
-                                {visibleColumns.type && <td style={{ padding: '12px' }}>{p.type || 'BUNDLE'}</td>}
+                                {visibleColumns.type && <td style={{ padding: '12px' }}>
+                                    <span style={{
+                                        padding: '2px 6px', borderRadius: '4px', fontSize: '0.8rem',
+                                        background: p.type === 'BUNDLE' ? '#9b59b6' : '#e67e22',
+                                        color: 'white'
+                                    }}>
+                                        {p.type || 'BUNDLE'}
+                                    </span>
+                                </td>}
 
                                 {visibleColumns.author && <td style={{ padding: '12px' }}>{p.attributes?.author || '-'}</td>}
                                 {visibleColumns.isbn && <td style={{ padding: '12px' }}>{p.attributes?.isbn || '-'}</td>}
@@ -204,7 +499,7 @@ const InventoryManager = () => {
                                 {visibleColumns.stock && <td style={{ padding: '12px', fontWeight: 'bold', color: p.quantity > 0 ? '#27ae60' : '#e74c3c' }}>
                                     {p.quantity}
                                 </td>}
-                                <td style={{ padding: '12px' }}></td> {/* Empty cell for the actions column */}
+                                <td style={{ padding: '12px' }}></td>
                             </tr>
                         ))}
                     </tbody>

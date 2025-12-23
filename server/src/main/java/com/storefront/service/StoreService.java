@@ -88,6 +88,31 @@ public class StoreService {
         transferRepository.save(transfer);
     }
 
+    public void returnStock(Long fromStoreId, AllocationRequestDTO request, AppUser currentUser) {
+        Store fromStore = storeRepository.findById(fromStoreId)
+                .orElseThrow(() -> new IllegalArgumentException("Store not found"));
+        Store masterStore = storeRepository.findFirstByType(Store.StoreType.MASTER)
+                .orElseThrow(() -> new IllegalStateException("Master Store not found"));
+
+        for (StockAllocationDTO item : request.getItems()) {
+            Optional<Product> productOpt = productRepository.findBySku(item.getSku());
+
+            if (productOpt.isPresent()) {
+                moveProduct(fromStore, masterStore, productOpt.get(), item.getQuantity(), currentUser);
+            } else {
+                Bundle bundle = bundleRepository.findBySku(item.getSku())
+                        .orElseThrow(() -> new IllegalArgumentException(
+                                "SKU not found for return: " + item.getSku()));
+
+                var bundleItems = bundleItemRepository.findByBundleId(bundle.getId());
+                for (BundleItem bi : bundleItems) {
+                    int totalQty = bi.getQuantity() * item.getQuantity();
+                    moveProduct(fromStore, masterStore, bi.getProduct(), totalQty, currentUser);
+                }
+            }
+        }
+    }
+
     public void reconcileStore(Long storeId, AppUser currentUser) {
         Store store = storeRepository.findById(storeId)
                 .orElseThrow(() -> new IllegalArgumentException("Store not found"));
