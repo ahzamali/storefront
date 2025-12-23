@@ -1,6 +1,6 @@
 # Transfer Script
 
-$targetIp = "192.168.211.175"
+$targetIp = ""
 $imageName = "storefront-v2:latest"
 $fileName = "storefront-v2.tar"
 
