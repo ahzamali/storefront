@@ -392,59 +392,60 @@ const InventoryManager = () => {
                     />
                 </div>
 
-                {selectedItems.size > 0 && (
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                        {/* Only allow Bundle Creation at HQ for now to ignore complexity of store-specific bundles */}
-                        {!selectedStoreId && (
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    {/* Only show these at HQ */}
+                    {!selectedStoreId && (
+                        <>
                             <button
-                                disabled={!canEdit}
+                                disabled={selectedItems.size === 0 || !canEdit}
                                 onClick={() => setIsBundleModalOpen(true)}
                                 style={{
                                     padding: '8px 16px',
-                                    background: canEdit ? '#8e44ad' : '#bdc3c7',
+                                    background: (selectedItems.size > 0 && canEdit) ? '#8e44ad' : '#bdc3c7',
                                     color: 'white',
                                     border: 'none',
                                     borderRadius: '4px',
-                                    cursor: canEdit ? 'pointer' : 'not-allowed'
+                                    cursor: (selectedItems.size > 0 && canEdit) ? 'pointer' : 'not-allowed'
                                 }}
                             >
                                 {canEdit ? `Create Bundle (${selectedItems.size})` : 'Create Bundle (Admin Only)'}
                             </button>
-                        )}
 
-                        {!selectedStoreId ? (
                             <button
-                                disabled={!canEdit}
+                                disabled={selectedItems.size === 0 || !canEdit}
                                 onClick={() => setIsTransferModalOpen(true)}
                                 style={{
                                     padding: '8px 16px',
-                                    background: canEdit ? '#3498db' : '#bdc3c7',
+                                    background: (selectedItems.size > 0 && canEdit) ? '#3498db' : '#bdc3c7',
                                     color: 'white',
                                     border: 'none',
                                     borderRadius: '4px',
-                                    cursor: canEdit ? 'pointer' : 'not-allowed'
+                                    cursor: (selectedItems.size > 0 && canEdit) ? 'pointer' : 'not-allowed'
                                 }}
                             >
                                 {canEdit ? 'Transfer to Store' : 'Transfer (Admin Only)'}
                             </button>
-                        ) : (
-                            <button
-                                disabled={!canEdit}
-                                onClick={handleReturnToHQ}
-                                style={{
-                                    padding: '8px 16px',
-                                    background: canEdit ? '#e67e22' : '#bdc3c7',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    cursor: canEdit ? 'pointer' : 'not-allowed'
-                                }}
-                            >
-                                {canEdit ? 'Return to HQ' : 'Return (Admin Only)'}
-                            </button>
-                        )}
-                    </div>
-                )}
+                        </>
+                    )}
+
+                    {/* Only show/enable Return at Store View */}
+                    {selectedStoreId && (
+                        <button
+                            disabled={selectedItems.size === 0 || !canEdit}
+                            onClick={handleReturnToHQ}
+                            style={{
+                                padding: '8px 16px',
+                                background: (selectedItems.size > 0 && canEdit) ? '#e67e22' : '#bdc3c7',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: (selectedItems.size > 0 && canEdit) ? 'pointer' : 'not-allowed'
+                            }}
+                        >
+                            {canEdit ? 'Return to HQ' : 'Return (Admin Only)'}
+                        </button>
+                    )}
+                </div>
             </div>
 
             <div style={{ marginTop: '1rem', background: 'white', padding: '1rem', borderRadius: '8px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
