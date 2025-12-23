@@ -99,7 +99,8 @@ public class InventoryService {
                                                 p.getName(),
                                                 p.getType(),
                                                 p.getBasePrice(),
-                                                stockMap.getOrDefault(p.getId(), 0)))
+                                                stockMap.getOrDefault(p.getId(), 0),
+                                                p.getAttributes()))
                                 .collect(java.util.stream.Collectors.toList());
         }
 

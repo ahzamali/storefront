@@ -1,6 +1,7 @@
 package com.storefront.dto;
 
 import java.math.BigDecimal;
+import com.storefront.model.attributes.ProductAttributes;
 
 public class ProductStockDTO {
     private Long id;
@@ -9,14 +10,17 @@ public class ProductStockDTO {
     private String type;
     private BigDecimal price;
     private int quantity;
+    private ProductAttributes attributes;
 
-    public ProductStockDTO(Long id, String sku, String name, String type, BigDecimal price, int quantity) {
+    public ProductStockDTO(Long id, String sku, String name, String type, BigDecimal price, int quantity,
+            ProductAttributes attributes) {
         this.id = id;
         this.sku = sku;
         this.name = name;
         this.type = type;
         this.price = price;
         this.quantity = quantity;
+        this.attributes = attributes;
     }
 
     public Long getId() {
@@ -41,5 +45,9 @@ public class ProductStockDTO {
 
     public int getQuantity() {
         return quantity;
+    }
+
+    public ProductAttributes getAttributes() {
+        return attributes;
     }
 }
