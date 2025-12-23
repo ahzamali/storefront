@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.storefront.app.ConfigManager
+import com.storefront.app.model.Store
 import com.storefront.app.network.NetworkModule
 import kotlinx.coroutines.launch
 
@@ -37,7 +38,7 @@ class StoreSelectionActivity : ComponentActivity() {
 
     @Composable
     fun StoreSelectionScreen() {
-        var stores by remember { mutableStateOf<List<Map<String, Any>>>(emptyList()) }
+        var stores by remember { mutableStateOf<List<Store>>(emptyList()) }
         val scope = rememberCoroutineScope()
         val context = LocalContext.current
 
@@ -69,26 +70,20 @@ class StoreSelectionActivity : ComponentActivity() {
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     items(stores) { store ->
-                        val id = (store["id"] as? Number)?.toLong() ?: -1L
-                        val name = store["name"] as? String ?: "Unknown"
-                        val type = store["type"] as? String ?: "Unknown"
-
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 8.dp)
                                 .clickable {
-                                    if (id != -1L) {
-                                        configManager.selectedStoreId = id
-                                        startActivity(Intent(this@StoreSelectionActivity, DashboardActivity::class.java))
-                                        finish()
-                                    }
+                                    configManager.selectedStoreId = store.id
+                                    startActivity(Intent(this@StoreSelectionActivity, DashboardActivity::class.java))
+                                    finish()
                                 },
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text(name, style = MaterialTheme.typography.titleLarge)
-                                Text(type, style = MaterialTheme.typography.bodyMedium)
+                                Text(store.name, style = MaterialTheme.typography.titleLarge)
+                                Text(store.type, style = MaterialTheme.typography.bodyMedium)
                             }
                         }
                     }

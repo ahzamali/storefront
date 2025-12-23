@@ -14,7 +14,7 @@ class MainActivity : ComponentActivity() {
 
         if (configManager.authToken == null) {
             startActivity(Intent(this, LoginActivity::class.java))
-        } else if (configManager.selectedStoreId == -1L) {
+        } else if (configManager.selectedStoreId == null) {
             startActivity(Intent(this, StoreSelectionActivity::class.java))
         } else {
             startActivity(Intent(this, DashboardActivity::class.java))

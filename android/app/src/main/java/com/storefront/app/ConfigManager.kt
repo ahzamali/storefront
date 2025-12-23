@@ -26,9 +26,15 @@ class ConfigManager(context: Context) {
         get() = prefs.getString(KEY_AUTH_TOKEN, null)
         set(value) = prefs.edit().putString(KEY_AUTH_TOKEN, value).apply()
 
-    var selectedStoreId: Long
-        get() = prefs.getLong(KEY_SELECTED_STORE_ID, -1L).takeIf { it != -1L } ?: -1L
-        set(value) = prefs.edit().putLong(KEY_SELECTED_STORE_ID, value).apply()
+    var selectedStoreId: Long?
+        get() = prefs.getLong(KEY_SELECTED_STORE_ID, -1L).takeIf { it != -1L }
+        set(value) {
+            if (value != null) {
+                prefs.edit().putLong(KEY_SELECTED_STORE_ID, value).apply()
+            } else {
+                prefs.edit().remove(KEY_SELECTED_STORE_ID).apply()
+            }
+        }
 
     val serverHistory: Set<String>
         get() = prefs.getStringSet(KEY_SERVER_HISTORY, emptySet()) ?: emptySet()

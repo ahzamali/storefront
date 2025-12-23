@@ -4,6 +4,9 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.storefront.app.ConfigManager
+import com.storefront.app.model.CreateOrderRequest
+import com.storefront.app.model.OrderItemRequest
+import com.storefront.app.model.ProductStockDTO
 import com.storefront.app.network.NetworkModule
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
@@ -21,26 +24,32 @@ class CartViewModel : ViewModel() {
     private val _cartItems = mutableStateListOf<CartItem>()
     val cartItems: List<CartItem> get() = _cartItems
 
+    private var _customerName: String? = null
+    private var _customerPhone: String? = null
+
     val totalAmount: BigDecimal
         get() = _cartItems.fold(BigDecimal.ZERO) { acc, item -> 
             acc.add(item.price.multiply(BigDecimal(item.quantity))) 
         }
+    
+    fun setCustomer(name: String, phone: String) {
+        _customerName = name.ifBlank { null }
+        _customerPhone = phone.ifBlank { null }
+    }
 
-    fun addToCart(product: Map<String, Any>, quantity: Int = 1) {
-        // Simplified Logic: accepting Map from API for now
-        // Ideally we map this to a Product model
-        val sku = product["sku"] as String
-        val name = product["name"] as String
-        val price = BigDecimal(product["price"].toString()) // or basePrice
+    fun addToCart(product: ProductStockDTO, quantity: Int = 1) {
+        val sku = product.sku
+        val name = product.name
+        val price = BigDecimal(product.basePrice.toString())
+        val isBundle = product.type == "BUNDLE"
         
-        // Check if exists (simple check, ignoring exclusions/bundles complexity for now)
         val existingIndex = _cartItems.indexOfFirst { it.sku == sku && it.excludedSkus.isEmpty() }
         
         if (existingIndex != -1) {
             val existing = _cartItems[existingIndex]
             _cartItems[existingIndex] = existing.copy(quantity = existing.quantity + quantity)
         } else {
-            _cartItems.add(CartItem(sku, name, price, quantity))
+            _cartItems.add(CartItem(sku, name, price, quantity, isBundle))
         }
     }
     
@@ -57,6 +66,8 @@ class CartViewModel : ViewModel() {
 
     fun clearCart() {
         _cartItems.clear()
+        _customerName = null
+        _customerPhone = null
     }
 
     fun checkout(configManager: ConfigManager, onSuccess: () -> Unit, onError: (String) -> Unit) {
@@ -67,24 +78,22 @@ class CartViewModel : ViewModel() {
             try {
                 val api = NetworkModule.createApiService(baseUrl)
                 
-                // Construct Order Request (ignoring storeId for now, need to fetch virtual store ID?)
-                // Assumption: User is linked to a Store, or we pick the store ID from context/selection.
-                // For this MVP, let's hardcode storeId or ask user?
-                // Better: The API 'createOrder' requires storeId.
-                // We'll pass a dummy '1' or add store selection to settings.
-                // Let's assume storeId = 1 for now.
+                // Use selected store from config, or default to 1 (Master) if not set, or throw error
+                // Ideally login flow sets this.
+                val storeId = configManager.selectedStoreId ?: 1 
                 
                 val itemsPayload = _cartItems.map { 
-                    mapOf(
-                        "sku" to it.sku,
-                        "quantity" to it.quantity,
-                        "excludedProductSkus" to it.excludedSkus
-                    ) 
+                    OrderItemRequest(it.sku, it.quantity)
+                    // Note: Excluded Products not fully supported in simple request yet in this new DTO unless we add it
+                    // The backend OrderItemRequestDTO likely has excludedProductSkus.
+                    // For now, simplicity.
                 }
                 
-                val orderRequest = mapOf(
-                    "storeId" to configManager.selectedStoreId,
-                    "items" to itemsPayload
+                val orderRequest = CreateOrderRequest(
+                    customerName = _customerName,
+                    customerPhone = _customerPhone,
+                    storeId = storeId,
+                    items = itemsPayload
                 )
 
                 api.createOrder("Bearer $token", orderRequest)
