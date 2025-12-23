@@ -70,3 +70,10 @@ Alright so out reconciliation function is incomplete, lets complete that. We nee
 2. This report should be generated for each resonciliation event. 
 3. The report should include the store admin for the virtual store at the time of reconciliation. 
 4. The reconciliation report should be retrievable. We should keep the list of reconciliation report in the Stores page itself 
+
+
+### inventory table update
+In the inventory page les add a few more functionality 
+1. There shold be an edit option, preferably inline in the table 
+2. There should be option to delete inventory as well, make sure that if an inventory is used anywhere else i.e. in order it gets hidden but not deleted. 
+3. The stock count update can happen inline as well we do not need a separate form for that 

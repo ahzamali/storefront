@@ -81,7 +81,7 @@ public class InventoryService {
                         targetStoreId = storeId;
                 }
 
-                List<Product> products = productRepository.findAll();
+                List<Product> products = productRepository.findAll(); // Returns active only due to repository override
                 List<StockLevel> stocks = stockLevelRepository.findByStoreId(targetStoreId);
 
                 // Map product ID to stock quantity for efficient lookup
@@ -173,5 +173,50 @@ public class InventoryService {
                                         bundle.getPrice(),
                                         itemDTOs);
                 }).collect(Collectors.toList());
+        }
+
+        public Product updateProduct(Long id, Product details) {
+                Product product = productRepository.findById(id)
+                                .orElseThrow(() -> new IllegalArgumentException("Product not found: " + id));
+
+                product.setName(details.getName());
+                product.setBasePrice(details.getBasePrice());
+                product.setType(details.getType());
+                // Handle attributes merge or replacement if needed, for MVP replacing entire
+                // object
+                if (details.getAttributes() != null) {
+                        product.setAttributes(details.getAttributes());
+                }
+                return productRepository.save(product);
+        }
+
+        public void deleteProduct(Long id) {
+                Product product = productRepository.findById(id)
+                                .orElseThrow(() -> new IllegalArgumentException("Product not found: " + id));
+                product.setActive(false);
+                productRepository.save(product);
+        }
+
+        public StockLevel updateStockCount(String sku, int quantity, Long storeId) {
+                Product product = productRepository.findBySku(sku)
+                                .orElseThrow(() -> new IllegalArgumentException("Product not found: " + sku));
+
+                Long targetStoreId;
+                if (storeId == null) {
+                        Store masterStore = storeRepository.findFirstByType(Store.StoreType.MASTER)
+                                        .orElseThrow(() -> new IllegalStateException(
+                                                        "Master Store not found initialized"));
+                        targetStoreId = masterStore.getId();
+                } else {
+                        targetStoreId = storeId;
+                }
+
+                StockLevel stockLevel = stockLevelRepository
+                                .findByStoreIdAndProductId(targetStoreId, product.getId())
+                                .orElse(new StockLevel(storeRepository.findById(targetStoreId).orElseThrow(), product,
+                                                0));
+
+                stockLevel.setQuantity(quantity);
+                return stockLevelRepository.save(stockLevel);
         }
 }

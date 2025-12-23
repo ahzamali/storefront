@@ -63,4 +63,23 @@ public class InventoryController {
         int quantity = (int) payload.getOrDefault("quantity", 1);
         return ResponseEntity.ok(inventoryService.ingestBook(isbn, quantity));
     }
+
+    @PutMapping("/products/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'STORE_ADMIN', 'ADMIN')")
+    public ResponseEntity<Product> updateProduct(@PathVariable Long id, @RequestBody Product product) {
+        return ResponseEntity.ok(inventoryService.updateProduct(id, product));
+    }
+
+    @DeleteMapping("/products/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'STORE_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> deleteProduct(@PathVariable Long id) {
+        inventoryService.deleteProduct(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/stock")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'STORE_ADMIN', 'ADMIN')")
+    public ResponseEntity<?> updateStockCount(@RequestBody com.storefront.dto.StockUpdateDTO dto) {
+        return ResponseEntity.ok(inventoryService.updateStockCount(dto.getSku(), dto.getQuantity(), dto.getStoreId()));
+    }
 }

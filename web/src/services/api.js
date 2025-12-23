@@ -25,7 +25,10 @@ export const getInventoryView = async (storeId) => {
     return (await api.get('/inventory/view', { params })).data;
 };
 export const addProduct = async (product) => (await api.post('/inventory/products', product)).data;
+export const updateProduct = async (id, product) => (await api.put(`/inventory/products/${id}`, product)).data;
+export const deleteProduct = async (id) => (await api.delete(`/inventory/products/${id}`)).data;
 export const addStock = async (sku, quantity) => (await api.post('/inventory/stock', { sku, quantity })).data;
+export const updateStock = async (sku, quantity, storeId) => (await api.put('/inventory/stock', { sku, quantity, storeId })).data;
 // Store management
 export const getAllStores = async () => (await api.get('/stores')).data;
 export const getStores = getAllStores; // Alias for backward compatibility

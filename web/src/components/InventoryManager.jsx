@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getInventoryView, addProduct, addStock, getBundles, createBundle, getStores, allocateStock, returnStock } from '../services/api';
+import { getInventoryView, addProduct, updateProduct, deleteProduct, addStock, updateStock, getBundles, createBundle, getStores, allocateStock, returnStock } from '../services/api';
 
 import useInventoryFilter from '../hooks/useInventoryFilter';
 import ProductDetailModal from './ProductDetailModal';
@@ -14,6 +14,81 @@ const InventoryManager = () => {
     const [newProduct, setNewProduct] = useState({ sku: '', name: '', type: 'BOOK', basePrice: '', attributes: {} });
     const [selectedItems, setSelectedItems] = useState(new Set());
     const [viewProduct, setViewProduct] = useState(null); // State for selected product detail view
+
+    // Inline Editing State
+    const [editingId, setEditingId] = useState(null);
+    const [editForm, setEditForm] = useState({});
+
+    // Handler to start editing a row
+    const handleEditClick = (product) => {
+        setEditingId(product.id);
+        const attr = product.attributes || {};
+        // Flatten for form ease if needed, but keeping structure for now
+        setEditForm({
+            ...product,
+            price: product.basePrice || product.price, // handle variable naming
+            attributes: { ...attr }
+        });
+    };
+
+    // Handler for input changes during edit
+    const handleEditChange = (field, value, isAttribute = false) => {
+        if (isAttribute) {
+            setEditForm(prev => ({
+                ...prev,
+                attributes: {
+                    ...prev.attributes,
+                    [field]: value
+                }
+            }));
+        } else {
+            setEditForm(prev => ({ ...prev, [field]: value }));
+        }
+    };
+
+    // Save changes
+    const handleSaveClick = async () => {
+        try {
+            // Check if stock changed
+            const original = products.find(p => p.id === editingId);
+            if (original && parseInt(editForm.quantity) !== parseInt(original.quantity) && editForm.type !== 'BUNDLE') {
+                await updateStock(editForm.sku, parseInt(editForm.quantity), selectedStoreId || null);
+            }
+
+            // Update product details (excluding stock, which is handled sep)
+            if (editForm.type !== 'BUNDLE') {
+                const payload = {
+                    name: editForm.name,
+                    basePrice: parseFloat(editForm.price),
+                    type: editForm.type,
+                    attributes: editForm.attributes
+                };
+                await updateProduct(editingId, payload);
+            }
+
+            setMessage('Product updated successfully');
+            setEditingId(null);
+            loadInventory();
+        } catch (e) {
+            setMessage('Update failed: ' + (e.response?.data?.message || e.message));
+        }
+    };
+
+    const handleCancelClick = () => {
+        setEditingId(null);
+        setEditForm({});
+    };
+
+    const handleDeleteClick = async (id) => {
+        if (!window.confirm("Are you sure you want to delete this product? It will be hidden from inventory.")) return;
+        try {
+            await deleteProduct(id);
+            setMessage('Product deleted successfully');
+            loadInventory();
+        } catch (e) {
+            setMessage('Delete failed: ' + (e.response?.data?.message || e.message));
+        }
+    };
 
     // User Role Logic
     const userRole = localStorage.getItem('userRole');
@@ -647,21 +722,47 @@ const InventoryManager = () => {
                                             type="checkbox"
                                             checked={selectedItems.has(p.sku)}
                                             onChange={() => toggleSelection(p.sku)}
+                                            disabled={editingId !== null}
                                         />
                                     )}
                                 </td>
                                 {visibleColumns.sku && <td style={{ padding: '12px' }}>{p.sku}</td>}
+
                                 {visibleColumns.name && (
                                     <td style={{ padding: '12px' }}>
-                                        <span
-                                            onClick={() => setViewProduct(p)}
-                                            style={{ color: '#3498db', cursor: 'pointer', textDecoration: 'underline' }}
-                                        >
-                                            {p.name}
-                                        </span>
+                                        {editingId === p.id ? (
+                                            <input
+                                                type="text"
+                                                value={editForm.name}
+                                                onChange={(e) => handleEditChange('name', e.target.value)}
+                                                style={{ padding: '4px', width: '100%' }}
+                                            />
+                                        ) : (
+                                            <span
+                                                onClick={() => setViewProduct(p)}
+                                                style={{ color: '#3498db', cursor: 'pointer', textDecoration: 'underline' }}
+                                            >
+                                                {p.name}
+                                            </span>
+                                        )}
                                     </td>
                                 )}
-                                {visibleColumns.price && <td style={{ padding: '12px' }}>₹{p.basePrice || p.price}</td>}
+
+                                {visibleColumns.price && (
+                                    <td style={{ padding: '12px' }}>
+                                        {editingId === p.id ? (
+                                            <input
+                                                type="number" step="0.01"
+                                                value={editForm.price}
+                                                onChange={(e) => handleEditChange('price', e.target.value)}
+                                                style={{ padding: '4px', width: '80px' }}
+                                            />
+                                        ) : (
+                                            `₹${p.basePrice || p.price}`
+                                        )}
+                                    </td>
+                                )}
+
                                 {visibleColumns.type && <td style={{ padding: '12px' }}>
                                     <span style={{
                                         padding: '2px 6px', borderRadius: '4px', fontSize: '0.8rem',
@@ -672,15 +773,52 @@ const InventoryManager = () => {
                                     </span>
                                 </td>}
 
-                                {visibleColumns.author && <td style={{ padding: '12px' }}>{p.attributes?.author || '-'}</td>}
-                                {visibleColumns.isbn && <td style={{ padding: '12px' }}>{p.attributes?.isbn || '-'}</td>}
-                                {visibleColumns.brand && <td style={{ padding: '12px' }}>{p.attributes?.brand || '-'}</td>}
+                                {visibleColumns.author && <td style={{ padding: '12px' }}>
+                                    {editingId === p.id && p.type === 'BOOK' ? (
+                                        <input type="text" value={editForm.attributes?.author || ''} onChange={(e) => handleEditChange('author', e.target.value, true)} style={{ width: '100%' }} />
+                                    ) : (p.attributes?.author || '-')}
+                                </td>}
+
+                                {visibleColumns.isbn && <td style={{ padding: '12px' }}>{p.attributes?.isbn || '-'}</td>} {/* ISBN usually immutable */}
+
+                                {visibleColumns.brand && <td style={{ padding: '12px' }}>
+                                    {editingId === p.id && p.type === 'STATIONERY' ? (
+                                        <input type="text" value={editForm.attributes?.brand || ''} onChange={(e) => handleEditChange('brand', e.target.value, true)} style={{ width: '100%' }} />
+                                    ) : (p.attributes?.brand || '-')}
+                                </td>}
+
                                 {visibleColumns.hardness && <td style={{ padding: '12px' }}>{p.attributes?.hardness || '-'}</td>}
 
-                                {visibleColumns.stock && <td style={{ padding: '12px', fontWeight: 'bold', color: p.quantity > 0 ? '#27ae60' : '#e74c3c' }}>
-                                    {p.quantity}
+                                {visibleColumns.stock && <td style={{ padding: '12px', fontWeight: 'bold' }}>
+                                    {editingId === p.id && p.type !== 'BUNDLE' ? (
+                                        <input
+                                            type="number"
+                                            value={editForm.quantity}
+                                            onChange={(e) => handleEditChange('quantity', e.target.value)}
+                                            style={{ padding: '4px', width: '60px' }}
+                                        />
+                                    ) : (
+                                        <span style={{ color: p.quantity > 0 ? '#27ae60' : '#e74c3c' }}>{p.quantity}</span>
+                                    )}
                                 </td>}
-                                <td style={{ padding: '12px' }}></td>
+
+                                <td style={{ padding: '12px' }}>
+                                    {canEdit && p.type !== 'BUNDLE' && (
+                                        <div style={{ display: 'flex', gap: '5px' }}>
+                                            {editingId === p.id ? (
+                                                <>
+                                                    <button onClick={handleSaveClick} style={{ background: '#27ae60', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}>Save</button>
+                                                    <button onClick={handleCancelClick} style={{ background: '#95a5a6', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}>Cancel</button>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <button onClick={() => handleEditClick(p)} style={{ background: 'transparent', border: '1px solid #3498db', color: '#3498db', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}>Edit</button>
+                                                    <button onClick={() => handleDeleteClick(p.id)} style={{ background: 'transparent', border: '1px solid #e74c3c', color: '#e74c3c', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}>Delete</button>
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
+                                </td>
                             </tr>
                         ))}
                     </tbody>

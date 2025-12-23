@@ -26,6 +26,9 @@ public class Product {
     @Column(name = "base_price", nullable = false)
     private BigDecimal basePrice;
 
+    @Column(name = "is_active", nullable = false)
+    private boolean isActive = true;
+
     @Column(columnDefinition = "json") // Basic support, might need Postgres dialect adjustments if using real JSONB
     @Convert(converter = JsonAttributeConverter.class)
     private ProductAttributes attributes;
@@ -91,5 +94,13 @@ public class Product {
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public boolean isActive() {
+        return isActive;
+    }
+
+    public void setActive(boolean active) {
+        isActive = active;
     }
 }
