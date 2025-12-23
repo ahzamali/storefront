@@ -6,6 +6,21 @@ services:
     container_name: storefront-app
     ports:
       - "8080:8080"
+
+    # --- Option 1: H2 Database (Default) ---
+    # Persists data to local ./data folder. No extra setup required.
     volumes:
       - ./data:/app/data
+
+    # --- Option 2: PostgreSQL (Uncomment to use) ---
+    # 1. Comment out the 'volumes' section above (H2 data)
+    # 2. Uncomment the 'environment' section below
+    # 3. Ensure you have a postgres database running (host: postgres-db)
+    # environment:
+    #   - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/storefront
+    #   - SPRING_DATASOURCE_USERNAME=postgres
+    #   - SPRING_DATASOURCE_PASSWORD=password
+    #   - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.postgresql.Driver
+    #   - SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT=org.hibernate.dialect.PostgreSQLDialect
+
     restart: unless-stopped
