@@ -11,6 +11,7 @@ const InventoryManager = () => {
     const [message, setMessage] = useState('');
     const [newProduct, setNewProduct] = useState({ sku: '', name: '', type: 'BOOK', basePrice: '', attributes: {} });
     const [selectedItems, setSelectedItems] = useState(new Set());
+    const [viewProduct, setViewProduct] = useState(null); // State for selected product detail view
 
     // User Role Logic
     const userRole = localStorage.getItem('userRole');
@@ -170,6 +171,11 @@ const InventoryManager = () => {
                 payload.type = 'PENCIL';
             }
 
+            // Ensure attributes has the type field for backend polymorphism
+            if (payload.attributes) {
+                payload.attributes.type = payload.type;
+            }
+
             await addProduct(payload);
             setMessage('Product created successfully');
             setNewProduct({ sku: '', name: '', type: 'BOOK', basePrice: '', attributes: {} });
@@ -308,6 +314,62 @@ const InventoryManager = () => {
                                 <button onClick={handleTransfer} style={{ flex: 1, height: '40px', padding: '0 10px', background: '#3498db', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Transfer</button>
                                 <button onClick={() => setIsTransferModalOpen(false)} style={{ flex: 1, height: '40px', padding: '0 10px', background: '#95a5a6', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Cancel</button>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Product Detail Modal */}
+            {viewProduct && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+                }}>
+                    <div style={{ background: 'white', padding: '2rem', borderRadius: '8px', width: '500px', maxHeight: '80vh', overflowY: 'auto', textAlign: 'left' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #eee', paddingBottom: '0.5rem' }}>
+                            <h3 style={{ margin: 0 }}>Product Details</h3>
+                            <button onClick={() => setViewProduct(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>×</button>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                            <div>
+                                <strong style={{ display: 'block', color: '#7f8c8d', fontSize: '0.9rem' }}>Name</strong>
+                                <div style={{ marginBottom: '1rem', fontSize: '1.1rem' }}>{viewProduct.name}</div>
+                            </div>
+                            <div>
+                                <strong style={{ display: 'block', color: '#7f8c8d', fontSize: '0.9rem' }}>SKU</strong>
+                                <div style={{ marginBottom: '1rem', fontFamily: 'monospace' }}>{viewProduct.sku}</div>
+                            </div>
+                            <div>
+                                <strong style={{ display: 'block', color: '#7f8c8d', fontSize: '0.9rem' }}>Type</strong>
+                                <div style={{ marginBottom: '1rem' }}>{viewProduct.type}</div>
+                            </div>
+                            <div>
+                                <strong style={{ display: 'block', color: '#7f8c8d', fontSize: '0.9rem' }}>Price</strong>
+                                <div style={{ marginBottom: '1rem', fontWeight: 'bold', color: '#2ecc71' }}>₹{viewProduct.basePrice || viewProduct.price}</div>
+                            </div>
+                            <div>
+                                <strong style={{ display: 'block', color: '#7f8c8d', fontSize: '0.9rem' }}>Current Stock</strong>
+                                <div style={{ marginBottom: '1rem' }}>{viewProduct.quantity}</div>
+                            </div>
+                        </div>
+
+                        {viewProduct.attributes && Object.keys(viewProduct.attributes).length > 0 && (
+                            <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #eee' }}>
+                                <h4 style={{ marginBottom: '0.5rem', color: '#2c3e50' }}>Attributes</h4>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(100px, auto) 1fr', gap: '0.5rem' }}>
+                                    {Object.entries(viewProduct.attributes).map(([key, value]) => (
+                                        <div key={key} style={{ display: 'contents' }}>
+                                            <div style={{ fontWeight: 'bold', color: '#555', textTransform: 'capitalize' }}>{key}:</div>
+                                            <div>{value}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div style={{ marginTop: '2rem', textAlign: 'right' }}>
+                            <button onClick={() => setViewProduct(null)} style={{ padding: '8px 16px', background: '#95a5a6', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Close</button>
                         </div>
                     </div>
                 </div>
@@ -518,7 +580,16 @@ const InventoryManager = () => {
                                     )}
                                 </td>
                                 {visibleColumns.sku && <td style={{ padding: '12px' }}>{p.sku}</td>}
-                                {visibleColumns.name && <td style={{ padding: '12px' }}>{p.name}</td>}
+                                {visibleColumns.name && (
+                                    <td style={{ padding: '12px' }}>
+                                        <span
+                                            onClick={() => setViewProduct(p)}
+                                            style={{ color: '#3498db', cursor: 'pointer', textDecoration: 'underline' }}
+                                        >
+                                            {p.name}
+                                        </span>
+                                    </td>
+                                )}
                                 {visibleColumns.price && <td style={{ padding: '12px' }}>₹{p.basePrice || p.price}</td>}
                                 {visibleColumns.type && <td style={{ padding: '12px' }}>
                                     <span style={{

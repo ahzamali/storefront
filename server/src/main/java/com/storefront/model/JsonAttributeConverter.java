@@ -31,9 +31,16 @@ public class JsonAttributeConverter implements AttributeConverter<ProductAttribu
             return null;
         }
         try {
+            // Check for double-serialized JSON (common issue if frontend/backend both
+            // serialize)
+            if (dbData.startsWith("\"") && dbData.endsWith("\"")) {
+                // Remove surrounding quotes and unescape
+                // Using generic Object reader to unwrap the string cleanly
+                dbData = objectMapper.readValue(dbData, String.class);
+            }
             return objectMapper.readValue(dbData, ProductAttributes.class);
         } catch (IOException e) {
-            throw new IllegalArgumentException("Error converting JSON to ProductAttributes", e);
+            throw new IllegalArgumentException("Error converting JSON to ProductAttributes: " + dbData, e);
         }
     }
 }

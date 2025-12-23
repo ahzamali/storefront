@@ -14,6 +14,7 @@ const Login = ({ setToken }) => {
         localStorage.setItem('targetHost', targetHost);
         try {
             const data = await login(username, password);
+            localStorage.setItem('token', data.token); // Fix race condition for immediate API calls
             setToken(data.token);
 
             // Store user info for multi-store support
