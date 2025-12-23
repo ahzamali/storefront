@@ -36,26 +36,45 @@ public class OrderController {
     public ResponseEntity<?> getOrders(
             @RequestParam(required = false) String customerName,
             @RequestParam(required = false) String customerPhone,
+            @RequestParam(required = false) Long storeId,
             @AuthenticationPrincipal UserDetails userDetails) {
 
         AppUser user = userRepository.findByUsername(userDetails.getUsername())
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-        java.util.List<Long> storeIds = null;
+        java.util.List<Long> storeIdsParam = null;
 
-        // If not SUPER_ADMIN, filter by assigned stores
-        if (user.getRole() != com.storefront.model.Role.SUPER_ADMIN
-                && user.getRole() != com.storefront.model.Role.ADMIN) {
-            storeIds = user.getStores().stream()
+        // RBAC Logic
+        if (user.getRole() == com.storefront.model.Role.SUPER_ADMIN
+                || user.getRole() == com.storefront.model.Role.ADMIN) {
+            // Admin can see all, or filter by specific store if requested
+            if (storeId != null) {
+                storeIdsParam = java.util.Collections.singletonList(storeId);
+            }
+        } else {
+            // Non-admin: Get assigned stores
+            java.util.List<Long> allowedStoreIds = user.getStores().stream()
                     .map(com.storefront.model.Store::getId)
                     .collect(java.util.stream.Collectors.toList());
 
-            // If non-admin user has no assigned stores, they see nothing (or empty list)
-            if (storeIds.isEmpty()) {
+            if (allowedStoreIds.isEmpty()) {
                 return ResponseEntity.ok(java.util.Collections.emptyList());
+            }
+
+            if (storeId != null) {
+                // User wants specific store. Check if allowed.
+                if (!allowedStoreIds.contains(storeId)) {
+                    // Unauthorized to see this specific store
+                    // Return empty or error? Empty is safer/standard for search filters
+                    return ResponseEntity.ok(java.util.Collections.emptyList());
+                }
+                storeIdsParam = java.util.Collections.singletonList(storeId);
+            } else {
+                // No specific store requested, return orders from all assigned stores
+                storeIdsParam = allowedStoreIds;
             }
         }
 
-        return ResponseEntity.ok(orderService.searchOrders(customerName, customerPhone, storeIds));
+        return ResponseEntity.ok(orderService.searchOrders(customerName, customerPhone, storeIdsParam));
     }
 }

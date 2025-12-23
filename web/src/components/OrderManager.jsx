@@ -1,16 +1,24 @@
 import { useState, useEffect } from 'react';
-import { getOrders } from '../services/api';
+import { getOrders, getStores } from '../services/api';
 
 const OrderManager = () => {
     const [orders, setOrders] = useState([]);
     const [filteredOrders, setFilteredOrders] = useState([]);
+    const [stores, setStores] = useState([]);
+    const [selectedStoreId, setSelectedStoreId] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
     useEffect(() => {
+        loadStores();
         loadOrders();
     }, []);
+
+    // Reload orders when store selection changes
+    useEffect(() => {
+        loadOrders();
+    }, [selectedStoreId]);
 
     useEffect(() => {
         if (!searchQuery) {
@@ -26,10 +34,19 @@ const OrderManager = () => {
         }
     }, [searchQuery, orders]);
 
+    const loadStores = async () => {
+        try {
+            const data = await getStores();
+            setStores(data);
+        } catch (e) {
+            console.error("Failed to load stores");
+        }
+    };
+
     const loadOrders = async () => {
         try {
             setLoading(true);
-            const data = await getOrders();
+            const data = await getOrders(selectedStoreId);
             setOrders(data);
             setFilteredOrders(data);
         } catch (err) {
@@ -47,8 +64,18 @@ const OrderManager = () => {
         <div style={{ padding: '20px' }}>
             <h2>Order Dashboard</h2>
 
-            {/* Search */}
-            <div style={{ marginBottom: '20px' }}>
+            {/* Search and Filter */}
+            <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
+                <select
+                    value={selectedStoreId}
+                    onChange={(e) => setSelectedStoreId(e.target.value)}
+                    style={{ padding: '10px', borderRadius: '4px', border: '1px solid #ddd' }}
+                >
+                    <option value="">All Stores</option>
+                    {stores.map(s => (
+                        <option key={s.id} value={s.id}>{s.name} ({s.type})</option>
+                    ))}
+                </select>
                 <input
                     type="text"
                     placeholder="Search by ID, Customer, or Store..."
@@ -100,7 +127,7 @@ const OrderManager = () => {
                                             </div>
                                         ) : '-'}
                                     </td>
-                                    <td style={{ padding: '12px', fontWeight: 'bold' }}>${order.totalAmount}</td>
+                                    <td style={{ padding: '12px', fontWeight: 'bold' }}>₹{order.totalAmount}</td>
                                     <td style={{ padding: '12px' }}>
                                         <span style={{
                                             background: order.status === 'COMPLETED' ? '#d4edda' : '#fff3cd',
