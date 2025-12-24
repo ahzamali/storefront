@@ -37,4 +37,10 @@ interface ApiService {
         @Header("Authorization") token: String, 
         @Body orderRequest: CreateOrderRequest
     ): Map<String, Any>
+
+    @POST("/api/v1/inventory/ingest/isbn")
+    suspend fun ingestIsbn(
+        @Header("Authorization") token: String,
+        @Body payload: Map<String, Any>
+    ): Any
 }
