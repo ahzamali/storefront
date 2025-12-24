@@ -178,7 +178,7 @@ public class StoreIntegrationTest {
                 assertEquals(10, stockLevelRepository.findByStoreIdAndProductId(storeId, penId).get().getQuantity());
 
                 // 4. Reconcile
-                mockMvc.perform(post("/api/v1/stores/" + storeId + "/reconcile")
+                mockMvc.perform(post("/api/v1/stores/" + storeId + "/reconcile?returnStock=true")
                                 .header("Authorization", "Bearer " + adminToken))
                                 .andExpect(status().isOk());
 

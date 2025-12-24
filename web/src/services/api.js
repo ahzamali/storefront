@@ -49,6 +49,7 @@ export const getReconciliationHistory = async (storeId) => (await api.get(`/stor
 export const getUsers = async () => (await api.get('/auth/users')).data;
 export const register = async (userData) => (await api.post('/auth/register', userData)).data;
 export const deleteUser = async (id) => await api.delete(`/auth/users/${id}`);
+export const updateUser = async (id, data) => (await api.put(`/auth/users/${id}`, data)).data;
 
 export const getBundles = async () => (await api.get('/inventory/bundles')).data;
 export const createBundle = async (bundleData) => (await api.post('/inventory/bundles', bundleData)).data;

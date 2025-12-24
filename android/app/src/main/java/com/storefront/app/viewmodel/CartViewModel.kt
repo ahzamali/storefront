@@ -40,7 +40,7 @@ class CartViewModel : ViewModel() {
     fun addToCart(product: ProductStockDTO, quantity: Int = 1) {
         val sku = product.sku
         val name = product.name
-        val price = BigDecimal(product.basePrice.toString())
+        val price = BigDecimal(product.price.toString())
         val isBundle = product.type == "BUNDLE"
         
         val existingIndex = _cartItems.indexOfFirst { it.sku == sku && it.excludedSkus.isEmpty() }
