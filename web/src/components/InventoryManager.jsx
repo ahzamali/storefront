@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getInventoryView, addProduct, updateProduct, deleteProduct, addStock, updateStock, getBundles, createBundle, getStores, allocateStock, returnStock } from '../services/api';
+import axios from 'axios';
+import { getInventoryView, addProduct, updateProduct, deleteProduct, updateStock, getBundles, createBundle, getStores, allocateStock, returnStock, reconcileStore } from '../services/api';
 
 import useInventoryFilter from '../hooks/useInventoryFilter';
 import ProductDetailModal from './ProductDetailModal';
@@ -9,9 +10,9 @@ const InventoryManager = () => {
     const [bundles, setBundles] = useState([]);
     const [stores, setStores] = useState([]);
     const [selectedStoreId, setSelectedStoreId] = useState(''); // '' means HQ
-    const [stock, setStock] = useState({ sku: '', quantity: '' });
     const [message, setMessage] = useState('');
     const [newProduct, setNewProduct] = useState({ sku: '', name: '', type: 'BOOK', basePrice: '', attributes: {} });
+    const [isSearchingISBN, setIsSearchingISBN] = useState(false);
     const [selectedItems, setSelectedItems] = useState(new Set());
     const [viewProduct, setViewProduct] = useState(null); // State for selected product detail view
 
@@ -276,15 +277,38 @@ const InventoryManager = () => {
         }
     };
 
-    const handleAddStock = async (e) => {
-        e.preventDefault();
+    const handleISBNSearch = async () => {
+        const isbn = newProduct.attributes.isbn;
+        if (!isbn) {
+            setMessage("Please enter an ISBN first");
+            return;
+        }
+        setIsSearchingISBN(true);
         try {
-            await addStock(stock.sku, parseInt(stock.quantity));
-            setMessage(`Stock added for ${stock.sku}`);
-            setStock({ sku: '', quantity: '' });
-            loadInventory();
-        } catch (err) {
-            setMessage('Failed to add stock');
+            const response = await axios.get(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
+            if (response.data.items && response.data.items.length > 0) {
+                const book = response.data.items[0].volumeInfo;
+                setNewProduct(prev => ({
+                    ...prev,
+                    sku: isbn, // Use ISBN as SKU
+                    name: book.title,
+                    type: 'BOOK',
+                    attributes: {
+                        ...prev.attributes,
+                        isbn: isbn,
+                        author: book.authors ? book.authors.join(', ') : '',
+                        publisher: book.publisher || ''
+                    }
+                }));
+                setMessage('Book details found!');
+            } else {
+                setMessage('No book found for this ISBN');
+            }
+        } catch (e) {
+            console.error(e);
+            setMessage('Failed to fetch book details');
+        } finally {
+            setIsSearchingISBN(false);
         }
     };
 
@@ -505,57 +529,94 @@ const InventoryManager = () => {
                 />
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
-                {/* Add Product Form */}
+            <div style={{ marginBottom: '2rem' }}>
+                {/* Add Product Form - Horizontal Layout */}
                 <div style={{ background: 'white', padding: '1.5rem', borderRadius: '8px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', opacity: canEdit ? 1 : 0.6, pointerEvents: canEdit ? 'auto' : 'none' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                         <h3>Add New Product</h3>
                         {!canEdit && <span style={{ fontSize: '0.8rem', color: '#e74c3c' }}>Admin Only</span>}
                     </div>
-                    <form onSubmit={handleAddProduct} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '1rem' }}>
-                        <input disabled={!canEdit} type="text" placeholder="SKU" value={newProduct.sku} onChange={e => setNewProduct({ ...newProduct, sku: e.target.value })} required style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                        <input disabled={!canEdit} type="text" placeholder="Name" value={newProduct.name} onChange={e => setNewProduct({ ...newProduct, name: e.target.value })} required style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                        <select disabled={!canEdit} value={newProduct.type} onChange={e => setNewProduct({ ...newProduct, type: e.target.value, attributes: {} })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}>
-                            <option value="BOOK">Book</option>
-                            <option value="STATIONERY">Stationery</option>
-                        </select>
-                        <input disabled={!canEdit} type="number" placeholder="Base Price" value={newProduct.basePrice} onChange={e => setNewProduct({ ...newProduct, basePrice: e.target.value })} required step="0.01" style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
 
-                        {/* Dynamic Attributes */}
-                        {newProduct.type === 'BOOK' && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#f8f9fa', padding: '10px', borderRadius: '4px' }}>
-                                <h4>Book Details</h4>
-                                <input disabled={!canEdit} type="text" placeholder="Author" value={newProduct.attributes.author || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, author: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                                <input disabled={!canEdit} type="text" placeholder="ISBN" value={newProduct.attributes.isbn || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, isbn: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                                <input disabled={!canEdit} type="text" placeholder="Publisher" value={newProduct.attributes.publisher || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, publisher: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+                    <form onSubmit={handleAddProduct}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', alignItems: 'end' }}>
+
+                            {/* ISBN Field First */}
+                            <div style={{ display: 'flex', gap: '5px', alignItems: 'flex-end' }}>
+                                <div style={{ flex: 1 }}>
+                                    <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px', color: '#666' }}>ISBN (for Books)</label>
+                                    <input
+                                        disabled={!canEdit}
+                                        type="text"
+                                        placeholder="Enter ISBN"
+                                        value={newProduct.attributes.isbn || ''}
+                                        onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, isbn: e.target.value } })}
+                                        style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd', width: '100%' }}
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleISBNSearch}
+                                    disabled={!canEdit || isSearchingISBN}
+                                    style={{ padding: '9px 10px', width: '20%', height: '35px', background: '#203243ff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                                >
+                                    {isSearchingISBN ? '...' : '🔍'}
+                                </button>
                             </div>
-                        )}
-                        {newProduct.type === 'STATIONERY' && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#f8f9fa', padding: '10px', borderRadius: '4px' }}>
-                                <h4>Stationery Details</h4>
-                                <input disabled={!canEdit} type="text" placeholder="Brand" value={newProduct.attributes.brand || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, brand: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                                <input disabled={!canEdit} type="text" placeholder="Hardness (e.g. HB)" value={newProduct.attributes.hardness || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, hardness: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                                <input disabled={!canEdit} type="text" placeholder="Material" value={newProduct.attributes.material || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, material: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
+
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px', color: '#666' }}>SKU</label>
+                                <input disabled={!canEdit} type="text" placeholder="SKU" value={newProduct.sku} onChange={e => setNewProduct({ ...newProduct, sku: e.target.value })} required style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd', width: '100%' }} />
                             </div>
-                        )}
 
-                        <button disabled={!canEdit} type="submit" style={{ padding: '10px', background: canEdit ? '#3498db' : '#95a5a6', color: 'white', border: 'none', borderRadius: '4px', cursor: canEdit ? 'pointer' : 'not-allowed' }}>Create Product</button>
-                    </form>
-                </div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px', color: '#666' }}>Name</label>
+                                <input disabled={!canEdit} type="text" placeholder="Name" value={newProduct.name} onChange={e => setNewProduct({ ...newProduct, name: e.target.value })} required style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd', width: '100%' }} />
+                            </div>
 
-                {/* Add Stock Form */}
-                <div style={{ background: 'white', padding: '1.5rem', borderRadius: '8px', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', opacity: canEdit ? 1 : 0.6, pointerEvents: canEdit ? 'auto' : 'none' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <h3>Add Stock {selectedStoreId ? '(to Selected Store)' : '(to HQ)'}</h3>
-                        {!canEdit && <span style={{ fontSize: '0.8rem', color: '#e74c3c' }}>Admin Only</span>}
-                    </div>
-                    <p style={{ fontSize: '0.8rem', color: '#666' }}>
-                        Warning: Direct stock addition usually happens at HQ.
-                    </p>
-                    <form onSubmit={handleAddStock} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '1rem' }}>
-                        <input disabled={!canEdit} type="text" placeholder="SKU" value={stock.sku} onChange={e => setStock({ ...stock, sku: e.target.value })} required style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                        <input disabled={!canEdit} type="number" placeholder="Quantity" value={stock.quantity} onChange={e => setStock({ ...stock, quantity: e.target.value })} required style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                        <button disabled={!canEdit} type="submit" style={{ padding: '10px', background: canEdit ? '#2ecc71' : '#95a5a6', color: 'white', border: 'none', borderRadius: '4px', cursor: canEdit ? 'pointer' : 'not-allowed' }}>Add Stock</button>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px', color: '#666' }}>Type</label>
+                                <select disabled={!canEdit} value={newProduct.type} onChange={e => setNewProduct({ ...newProduct, type: e.target.value, attributes: {} })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd', width: '100%' }}>
+                                    <option value="BOOK">Book</option>
+                                    <option value="STATIONERY">Stationery</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px', color: '#666' }}>Base Price</label>
+                                <input disabled={!canEdit} type="number" placeholder="Price" value={newProduct.basePrice} onChange={e => setNewProduct({ ...newProduct, basePrice: e.target.value })} required step="0.01" style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd', width: '100%' }} />
+                            </div>
+
+                            {/* Dynamic Fields - simplified for horizontal row if possible, or new row */}
+                            {newProduct.type === 'BOOK' && (
+                                <>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px', color: '#666' }}>Author</label>
+                                        <input disabled={!canEdit} type="text" placeholder="Author" value={newProduct.attributes.author || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, author: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd', width: '100%' }} />
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px', color: '#666' }}>Publisher</label>
+                                        <input disabled={!canEdit} type="text" placeholder="Publisher" value={newProduct.attributes.publisher || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, publisher: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd', width: '100%' }} />
+                                    </div>
+                                </>
+                            )}
+
+                            {newProduct.type === 'STATIONERY' && (
+                                <>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px', color: '#666' }}>Brand</label>
+                                        <input disabled={!canEdit} type="text" placeholder="Brand" value={newProduct.attributes.brand || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, brand: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd', width: '100%' }} />
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px', color: '#666' }}>Material</label>
+                                        <input disabled={!canEdit} type="text" placeholder="Material" value={newProduct.attributes.material || ''} onChange={e => setNewProduct({ ...newProduct, attributes: { ...newProduct.attributes, material: e.target.value } })} style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd', width: '100%' }} />
+                                    </div>
+                                </>
+                            )}
+
+                            <div>
+                                <button disabled={!canEdit} type="submit" style={{ width: '80%', padding: '8px', background: canEdit ? '#3498db' : '#95a5a6', color: 'white', border: 'none', borderRadius: '4px', cursor: canEdit ? 'pointer' : 'not-allowed' }}>Create Product</button>
+                            </div>
+                        </div>
                     </form>
                 </div>
             </div>

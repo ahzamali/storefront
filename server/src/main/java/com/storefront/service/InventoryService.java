@@ -106,19 +106,32 @@ public class InventoryService {
                 return getInventoryView(null);
         }
 
-        public Product ingestBook(String isbn, int quantity) {
+        public Product ingestBook(String isbn, int quantity, Double manualPrice) {
                 Optional<Product> existing = productRepository.findBySku(isbn);
                 Product product;
 
                 if (existing.isPresent()) {
                         product = existing.get();
+                        // Optional: Update price if provided for existing product?
+                        if (manualPrice != null) {
+                                product.setBasePrice(java.math.BigDecimal.valueOf(manualPrice));
+                                productRepository.save(product);
+                        }
                 } else {
                         java.util.Map<String, Object> details = bookService.fetchBookDetails(isbn)
                                         .orElseThrow(() -> new IllegalArgumentException(
                                                         "Book not found for ISBN: " + isbn));
 
                         String name = (String) details.get("title");
-                        java.math.BigDecimal price = (java.math.BigDecimal) details.get("price");
+                        java.math.BigDecimal price;
+
+                        if (manualPrice != null) {
+                                price = java.math.BigDecimal.valueOf(manualPrice);
+                        } else {
+                                price = (java.math.BigDecimal) details.get("price");
+                                if (price == null)
+                                        price = java.math.BigDecimal.ZERO;
+                        }
 
                         // Create BookAttributes
                         com.storefront.model.attributes.BookAttributes attributes = new com.storefront.model.attributes.BookAttributes();
