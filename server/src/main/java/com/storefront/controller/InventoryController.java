@@ -61,7 +61,12 @@ public class InventoryController {
     public ResponseEntity<?> ingestIsbn(@RequestBody java.util.Map<String, Object> payload) {
         String isbn = (String) payload.get("isbn");
         int quantity = (int) payload.getOrDefault("quantity", 1);
-        return ResponseEntity.ok(inventoryService.ingestBook(isbn, quantity));
+        Object priceObj = payload.get("price");
+        Double price = null;
+        if (priceObj != null) {
+            price = Double.valueOf(priceObj.toString());
+        }
+        return ResponseEntity.ok(inventoryService.ingestBook(isbn, quantity, price));
     }
 
     @PutMapping("/products/{id}")
