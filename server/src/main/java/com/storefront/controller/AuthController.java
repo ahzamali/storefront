@@ -97,4 +97,92 @@ public class AuthController {
         authService.deleteUser(id);
         return ResponseEntity.ok().build();
     }
+
+    @PutMapping("/users/{id}")
+    public ResponseEntity<?> updateUser(@PathVariable Long id, @RequestBody com.storefront.dto.UserUpdateDTO body) {
+        // RBAC Logic
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication();
+        String currentUsername = auth.getName();
+
+        // Find current user to check ID and Role
+        // Ideally we cache this or get from principal, but for now we fetch
+        // Since we don't have easy access to current user ID from principal name
+        // without lookup or custom principal
+        // Let's rely on AuthService to help or just lookup here
+        // Simpler: Check if username matches target user's username?
+        // Or fetch current user.
+
+        // Note: For this iteration, let's just fetch current user by username
+        // (Assuming username is unique and present)
+        // Optimization: In real app, Principal should have ID.
+
+        // Use a service method (not exposed in interface yet, but repo has it)
+        // We'll trust AuthService to handle simple lookup or just add a helper if
+        // needed.
+        // But for now, let's assume we can't easily get ID from name without repo
+        // access.
+        // Let's inject repo or just check permissions based on role for other users.
+
+        boolean isSelf = false;
+        boolean isSuperAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_SUPER_ADMIN"));
+
+        // Retrieve target user to verify identity match if not super admin
+        // But wait, we can't query repo from controller ideally?
+        // Actually we can just pass the check logic to service or do it here.
+        // Let's do it here with a quick trick:
+        // If !isSuperAdmin, we MUST ensure target ID belongs to currentUsername.
+
+        // This requires fetching the target user to see if username matches token
+        // username.
+        // OR fetching current user to compare IDs.
+
+        // Let's assume we can fetch target user via AuthService (we need a getById
+        // exposed? no, we have listUsers)
+        // Let's add getById to AuthService quickly or use existing listUsers loop
+        // (inefficient but works)
+        // Better: Just add getById to AuthService or public access.
+
+        // Actually, we can use the existing `updateUser` in service to verify ownership
+        // if we pass the current username?
+        // No, separation of concerns.
+
+        // Re-strategy: Allow update if (isSuperAdmin OR isSelf).
+
+        // Let's verify "isSelf" by getting the target user.
+        // We really need `getUserById` in AuthService. I'll add that helper now
+        // implicitly or just use the repo if I had it.
+        // Since I don't want to change AuthService signature too much, I'll use the
+        // hack:
+        // Assume ID match if I can get current ID.
+
+        // Alternative: Pass `currentUsername` to `updateUser` and let Service decide?
+        // No, Controller should handle HTTP status.
+
+        // I will trust that the user calling this knows their ID? No security risk.
+        // CORRECT PATH: Fetch DB user for `id` and compare username.
+        // I will assume I can inject repository here? Or just add `getUser(id)` to
+        // Service.
+        // Let's add `getUser(id)` to Service in next step if needed, OR just use
+        // `listUsers()` stream for now (MVP).
+
+        try {
+            AppUser targetUser = authService.getUserById(id); // I need to add this
+            if (!targetUser.getUsername().equals(currentUsername) && !isSuperAdmin) {
+                return ResponseEntity.status(403).body(Map.of("error", "Access denied"));
+            }
+
+            // Specific Rule: Non-SuperAdmin cannot change stores
+            if (!isSuperAdmin && body.getStoreIds() != null) {
+                return ResponseEntity.status(403).body(Map.of("error", "Only Super Admin can assign stores"));
+            }
+
+            AppUser updated = authService.updateUser(id, body);
+            return ResponseEntity.ok(updated);
+
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(404).body(Map.of("error", "User not found"));
+        }
+    }
 }

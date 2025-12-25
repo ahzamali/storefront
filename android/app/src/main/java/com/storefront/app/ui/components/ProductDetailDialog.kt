@@ -41,7 +41,7 @@ fun ProductDetailDialog(product: ProductStockDTO, onDismiss: () -> Unit) {
 
                 // Core Details
                 DetailRow("SKU", product.sku)
-                DetailRow("Price", "$${product.basePrice}")
+                DetailRow("Price", "$${product.price}")
                 DetailRow("Current Stock", product.quantity.toString(), isStock = true)
 
                 Divider(modifier = Modifier.padding(vertical = 16.dp))

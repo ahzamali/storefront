@@ -15,7 +15,7 @@ data class ProductStockDTO(
     val sku: String,
     val name: String,
     val type: String, // BOOK, PENCIL, BUNDLE
-    val basePrice: Double,
+    val price: Double,
     val quantity: Int, // Available stock
     val attributes: ProductAttributes? = null
 )
