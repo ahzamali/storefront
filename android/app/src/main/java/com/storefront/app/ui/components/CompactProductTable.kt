@@ -96,7 +96,7 @@ fun CompactProductRow(
 
         // Price
         Text(
-            text = "₹${product.basePrice}",
+            text = "₹${product.price}",
             modifier = Modifier.weight(0.8f),
             style = MaterialTheme.typography.bodyMedium
         )

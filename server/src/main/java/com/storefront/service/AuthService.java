@@ -75,4 +75,26 @@ public class AuthService {
     public void deleteUser(Long id) {
         userRepository.deleteById(id);
     }
+
+    public AppUser getUserById(Long id) {
+        return userRepository.findById(id).orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    public AppUser updateUser(Long id, com.storefront.dto.UserUpdateDTO updateData) {
+        AppUser user = userRepository.findById(id).orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (updateData.getPassword() != null && !updateData.getPassword().isBlank()) {
+            user.setPasswordHash(passwordEncoder.encode(updateData.getPassword()));
+        }
+
+        if (updateData.getStoreIds() != null) {
+            java.util.Set<com.storefront.model.Store> newStores = new java.util.HashSet<>();
+            for (Long storeId : updateData.getStoreIds()) {
+                storeRepository.findById(storeId).ifPresent(newStores::add);
+            }
+            user.setStores(newStores);
+        }
+
+        return userRepository.save(user);
+    }
 }

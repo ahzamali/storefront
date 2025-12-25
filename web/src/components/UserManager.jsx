@@ -1,11 +1,16 @@
 import { useState, useEffect } from 'react';
-import { getUsers, register, getStores, deleteUser } from '../services/api';
+import { getUsers, register, getStores, deleteUser, updateUser } from '../services/api';
 
 const UserManager = () => {
     const [users, setUsers] = useState([]);
     const [stores, setStores] = useState([]);
     const [form, setForm] = useState({ username: '', password: '', role: 'EMPLOYEE', storeId: '' });
     const [error, setError] = useState('');
+
+    // Edit State
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editingUser, setEditingUser] = useState(null);
+    const [editForm, setEditForm] = useState({ password: '', confirmPassword: '', storeIds: [] });
 
     useEffect(() => {
         loadData();
@@ -52,6 +57,39 @@ const UserManager = () => {
             alert('Failed to delete user');
         }
     };
+
+    const handleEditClick = (user) => {
+        setEditingUser(user);
+        setEditForm({
+            password: '',
+            confirmPassword: '',
+            storeIds: user.stores ? user.stores.map(s => s.id) : []
+        });
+        setShowEditModal(true);
+    };
+
+    const handleUpdateUser = async (e) => {
+        e.preventDefault();
+        if (editForm.password && editForm.password !== editForm.confirmPassword) {
+            alert('Passwords do not match');
+            return;
+        }
+        try {
+            const payload = {
+                password: editForm.password,
+                storeIds: editForm.storeIds
+            };
+            await updateUser(editingUser.id, payload);
+            alert('User updated successfully');
+            setShowEditModal(false);
+            setEditingUser(null);
+            loadData(); // Reload
+        } catch (err) {
+            alert(err.response?.data?.error || 'Failed to update user');
+        }
+    };
+
+    const userRole = localStorage.getItem('userRole');
 
     return (
         <div>
@@ -122,7 +160,7 @@ const UserManager = () => {
                             <th style={{ padding: '12px' }}>ID</th>
                             <th style={{ padding: '12px' }}>Username</th>
                             <th style={{ padding: '12px' }}>Role</th>
-                            <th style={{ padding: '12px' }}>Store</th>
+                            <th style={{ padding: '12px' }}>Stores</th>
                             <th style={{ padding: '12px' }}>Actions</th>
                         </tr>
                     </thead>
@@ -132,8 +170,18 @@ const UserManager = () => {
                                 <td style={{ padding: '12px' }}>{u.id}</td>
                                 <td style={{ padding: '12px', fontWeight: 'bold' }}>{u.username}</td>
                                 <td style={{ padding: '12px' }}>{u.role}</td>
-                                <td style={{ padding: '12px', color: '#7f8c8d' }}>{u.store ? u.store.name : 'Global'}</td>
+                                <td style={{ padding: '12px', color: '#7f8c8d' }}>
+                                    {u.stores && u.stores.length > 0 ? u.stores.map(s => s.name).join(', ') : 'Global/None'}
+                                </td>
                                 <td style={{ padding: '12px' }}>
+                                    {userRole === 'SUPER_ADMIN' && (
+                                        <button
+                                            onClick={() => handleEditClick(u)}
+                                            style={{ padding: '5px 10px', background: '#f39c12', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginRight: '5px' }}
+                                        >
+                                            Edit
+                                        </button>
+                                    )}
                                     <button
                                         onClick={() => handleDelete(u.id)}
                                         style={{ padding: '5px 10px', background: '#e74c3c', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
@@ -146,6 +194,59 @@ const UserManager = () => {
                     </tbody>
                 </table>
             </div>
+
+            {/* Edit User Modal */}
+            {showEditModal && editingUser && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                    <div style={{ background: 'white', padding: '2rem', borderRadius: '8px', width: '400px' }}>
+                        <h3>Edit User: {editingUser.username}</h3>
+                        <form onSubmit={handleUpdateUser} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>New Password</label>
+                                <input
+                                    type="password"
+                                    placeholder="Leave blank to keep unchanged"
+                                    style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                                    value={editForm.password}
+                                    onChange={e => setEditForm({ ...editForm, password: e.target.value })}
+                                />
+                            </div>
+
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Confirm New Password</label>
+                                <input
+                                    type="password"
+                                    placeholder="Confirm new password"
+                                    style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                                    value={editForm.confirmPassword}
+                                    onChange={e => setEditForm({ ...editForm, confirmPassword: e.target.value })}
+                                />
+                            </div>
+
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Store Assignment (Multi-select)</label>
+                                <select
+                                    multiple
+                                    style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', height: '100px' }}
+                                    value={editForm.storeIds}
+                                    onChange={e => {
+                                        const selected = Array.from(e.target.selectedOptions, option => parseInt(option.value));
+                                        setEditForm({ ...editForm, storeIds: selected });
+                                    }}
+                                >
+                                    {stores.map(s => <option key={s.id} value={s.id}>{s.name} ({s.type})</option>)}
+                                </select>
+                                <small style={{ color: '#666' }}>Hold Ctrl/Cmd to select multiple</small>
+                            </div>
+
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '1rem' }}>
+                                <button type="button" onClick={() => setShowEditModal(false)} style={{ padding: '8px 16px', background: '#95a5a6', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Cancel</button>
+                                <button type="submit" style={{ padding: '8px 16px', background: '#2ecc71', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Save Changes</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

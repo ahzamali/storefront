@@ -208,7 +208,7 @@ fun ProductItem(product: ProductStockDTO, onClick: () -> Unit) {
         supportingContent = { 
             Column {
                 Text("SKU: ${product.sku}")
-                Text("Price: $${product.basePrice}", color = MaterialTheme.colorScheme.primary)
+                Text("Price: $${product.price}", color = MaterialTheme.colorScheme.primary)
             }
         },
         trailingContent = {
