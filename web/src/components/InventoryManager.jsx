@@ -776,7 +776,7 @@ const InventoryManager = () => {
                     </thead>
                     <tbody>
                         {filteredProducts.map(p => (
-                            <tr key={p.id || p.sku} style={{ borderBottom: '1px solid #eee', background: p.type === 'BUNDLE' ? '#fbf7ff' : 'white' }}>
+                            <tr key={`${p.type}-${p.id || p.sku}`} style={{ borderBottom: '1px solid #eee', background: p.type === 'BUNDLE' ? '#fbf7ff' : 'white' }}>
                                 <td style={{ padding: '12px', textAlign: 'center' }}>
                                     {p.type !== 'BUNDLE' && (
                                         <input
@@ -840,7 +840,7 @@ const InventoryManager = () => {
                                     ) : (p.attributes?.author || '-')}
                                 </td>}
 
-                                {visibleColumns.isbn && <td style={{ padding: '12px' }}>{p.attributes?.isbn || '-'}</td>} {/* ISBN usually immutable */}
+                                {visibleColumns.isbn && <td style={{ padding: '12px' }}>{p.attributes?.isbn || '-'}</td>}
 
                                 {visibleColumns.brand && <td style={{ padding: '12px' }}>
                                     {editingId === p.id && p.type === 'STATIONERY' ? (
