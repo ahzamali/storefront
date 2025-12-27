@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link, Routes, Route } from 'react-router-dom';
+import './Dashboard.css';
+
 // Components
 import InventoryManager from '../components/InventoryManager';
 import StoreManager from '../components/StoreManager';
 import UserManager from '../components/UserManager';
 import PointOfSale from '../components/PointOfSale';
-import OrderManager from '../components/OrderManager'; // New Import
-
+import OrderManager from '../components/OrderManager';
 
 import { updateUser } from '../services/api';
 
@@ -14,6 +15,7 @@ const Dashboard = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [userRole, setUserRole] = useState('');
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     // Change Password State
     const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -54,37 +56,79 @@ const Dashboard = () => {
         }
     };
 
-    return (
-        <div style={{ display: 'flex', minHeight: '100vh', background: '#f4f6f9' }}>
-            {/* Sidebar Navigation */}
-            <div style={{
-                width: '250px',
-                background: '#2c3e50',
-                color: 'white',
-                display: 'flex',
-                flexDirection: 'column',
-                padding: '20px'
-            }}>
-                <h2 style={{ marginBottom: '2rem', textAlign: 'center', borderBottom: '1px solid #34495e', paddingBottom: '1rem' }}>StoreFront</h2>
+    const toggleSidebar = () => {
+        setIsSidebarOpen(!isSidebarOpen);
+    };
 
-                <nav style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <Link to="/" style={{ padding: '10px', color: 'white', textDecoration: 'none', background: location.pathname === '/' ? '#34495e' : 'transparent', borderRadius: '4px' }}>Inventory</Link>
-                    <Link to="/pos" style={{ padding: '10px', color: 'white', textDecoration: 'none', background: location.pathname === '/pos' ? '#34495e' : 'transparent', borderRadius: '4px' }}>Sale</Link>
-                    <Link to="/orders" style={{ padding: '10px', color: 'white', textDecoration: 'none', background: location.pathname === '/orders' ? '#34495e' : 'transparent', borderRadius: '4px' }}>Orders</Link>
+    const closeSidebar = () => {
+        setIsSidebarOpen(false);
+    };
+
+    return (
+        <div className="dashboard-container">
+            {/* Mobile Menu Toggle */}
+            <button className="mobile-menu-toggle" onClick={toggleSidebar}>
+                ☰ Menu
+            </button>
+
+            {/* Sidebar Overlay */}
+            <div
+                className={`sidebar-overlay ${isSidebarOpen ? 'open' : ''}`}
+                onClick={closeSidebar}
+            ></div>
+
+            {/* Sidebar Navigation */}
+            <div className={`dashboard-sidebar ${isSidebarOpen ? 'open' : ''}`}>
+                <h2 className="sidebar-header">StoreFront</h2>
+
+                <nav className="sidebar-nav">
+                    <Link
+                        to="/"
+                        className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}
+                        onClick={closeSidebar}
+                    >
+                        Inventory
+                    </Link>
+                    <Link
+                        to="/pos"
+                        className={`nav-link ${location.pathname === '/pos' ? 'active' : ''}`}
+                        onClick={closeSidebar}
+                    >
+                        Sale
+                    </Link>
+                    <Link
+                        to="/orders"
+                        className={`nav-link ${location.pathname === '/orders' ? 'active' : ''}`}
+                        onClick={closeSidebar}
+                    >
+                        Orders
+                    </Link>
 
 
                     {['SUPER_ADMIN', 'ADMIN'].includes(userRole) && (
                         <>
-                            <Link to="/stores" style={{ padding: '10px', color: 'white', textDecoration: 'none', background: location.pathname === '/stores' ? '#34495e' : 'transparent', borderRadius: '4px' }}>Stores</Link>
-                            <Link to="/users" style={{ padding: '10px', color: 'white', textDecoration: 'none', background: location.pathname === '/users' ? '#34495e' : 'transparent', borderRadius: '4px' }}>Users</Link>
+                            <Link
+                                to="/stores"
+                                className={`nav-link ${location.pathname === '/stores' ? 'active' : ''}`}
+                                onClick={closeSidebar}
+                            >
+                                Stores
+                            </Link>
+                            <Link
+                                to="/users"
+                                className={`nav-link ${location.pathname === '/users' ? 'active' : ''}`}
+                                onClick={closeSidebar}
+                            >
+                                Users
+                            </Link>
                         </>
                     )}
                 </nav>
 
-                <div style={{ marginTop: 'auto' }}>
+                <div className="sidebar-footer">
                     <button
                         onClick={() => setShowPasswordModal(true)}
-                        style={{ width: '100%', padding: '10px', background: 'transparent', color: '#bdc3c7', border: '1px solid #bdc3c7', borderRadius: '4px', cursor: 'pointer', marginBottom: '10px' }}
+                        className="btn-change-password"
                     >
                         Change Password
                     </button>
@@ -93,18 +137,18 @@ const Dashboard = () => {
                             localStorage.clear();
                             navigate('/login');
                         }}
-                        style={{ width: '100%', padding: '10px', background: '#c0392b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                        className="btn-logout"
                     >
                         Logout
                     </button>
-                    <div style={{ marginTop: '10px', fontSize: '0.8rem', textAlign: 'center', opacity: 0.7 }}>
+                    <div className="user-role-display">
                         Role: {userRole}
                     </div>
                 </div>
             </div>
 
             {/* Main Content Area */}
-            <div style={{ flex: 1, padding: '20px', overflowY: 'auto' }}>
+            <div className="dashboard-content">
                 <Routes>
                     <Route path="/" element={<InventoryManager />} />
                     <Route path="/pos" element={<PointOfSale userRole={userRole} />} />
@@ -117,7 +161,7 @@ const Dashboard = () => {
 
             {/* Change Password Modal */}
             {showPasswordModal && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000 }}>
                     <div style={{ background: 'white', padding: '2rem', borderRadius: '8px', width: '350px' }}>
                         <h3>Change Password</h3>
                         <form onSubmit={handleChangePassword}>

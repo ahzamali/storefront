@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { getAllStores, getStoreInventory, getBundles, createOrder } from '../services/api';
 import useInventoryFilter from '../hooks/useInventoryFilter';
 import ProductDetailModal from './ProductDetailModal';
+import './PointOfSale.css';
 
 const PointOfSale = ({ userId, userRole, userStoreIds }) => {
     const [stores, setStores] = useState([]);
@@ -277,10 +278,10 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
     }
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', height: '85vh' }}>
+        <div className="pos-container">
             {/* Store Selector & Search */}
-            <div style={{ background: 'white', padding: '1rem', borderRadius: '8px', display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                <div style={{ flex: 1 }}>
+            <div className="pos-header">
+                <div className="pos-header-section">
                     <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Select Store:</label>
                     <select
                         value={selectedStoreId || ''}
@@ -296,7 +297,7 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
                 </div>
 
                 {/* Enhanced Search Bar */}
-                <div style={{ flex: 2, display: 'flex', flexDirection: 'column' }}>
+                <div className="pos-header-section" style={{ flex: 2 }}>
                     <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Search Inventory:</label>
                     <div style={{ display: 'flex', gap: '10px' }}>
                         <select
@@ -333,9 +334,9 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
             {error && <div style={{ color: '#c0392b', background: '#fadbd8', padding: '1rem', borderRadius: '4px' }}>{error}</div>}
             {success && <div style={{ color: '#27ae60', background: '#d5f4e6', padding: '1rem', borderRadius: '4px' }}>{success}</div>}
 
-            <div style={{ display: 'flex', gap: '1rem', flex: 1, overflow: 'hidden' }}>
+            <div className="pos-layout">
                 {/* Left: Inventory Table with Dynamic Columns */}
-                <div style={{ flex: 2, background: 'white', borderRadius: '8px', padding: '1rem', display: 'flex', flexDirection: 'column' }}>
+                <div className="inventory-section">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                         <h3>Available Inventory</h3>
                     </div>
@@ -349,7 +350,7 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
                     )}
 
                     {selectedStoreId && filteredInventory.length > 0 && (
-                        <div style={{ flex: 1, overflowY: 'auto' }}>
+                        <div className="inventory-table-container">
                             <table style={{ width: '100%', borderCollapse: 'collapse', color: '#333' }}>
                                 <thead style={{ position: 'sticky', top: 0, background: '#ecf0f1', zIndex: 1 }}>
                                     <tr>
@@ -470,7 +471,7 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
                 </div>
 
                 {/* Right: Cart & Customer */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'white', padding: '1.5rem', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
+                <div className="cart-section">
                     <h3>Current Sale</h3>
 
                     <div style={{ marginBottom: '1rem' }}>
@@ -488,7 +489,7 @@ const PointOfSale = ({ userId, userRole, userStoreIds }) => {
                         />
                     </div>
 
-                    <div style={{ flex: 1, overflowY: 'auto', borderTop: '1px solid #eee', borderBottom: '1px solid #eee', padding: '1rem 0' }}>
+                    <div className="cart-items-container">
                         {cart.length === 0 && <p style={{ color: '#95a5a6', textAlign: 'center' }}>Cart is empty</p>}
                         {cart.map(item => (
                             <div key={item.sku} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', alignItems: 'center' }}>
