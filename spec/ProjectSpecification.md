@@ -75,3 +75,6 @@ The system consists of three main components:
 -   **Allocation Logic**: Moving stock from Master to Virtual Stores.
 -   **Sales Reporting**: Aggregated reports from Virtual Store sales.
 -   **Barcode Scanning**: Mobile app integration for finding products.
+-   **SSO Integration**: Enable Single Sign-On (SSO) authentication for users.
+-   **Product Images**: Ability to upload and display images for products.
+

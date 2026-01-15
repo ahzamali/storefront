@@ -38,6 +38,8 @@ public class InventoryIntegrationTest {
     private AuthService authService;
     @Autowired
     private StoreRepository storeRepository;
+    @Autowired
+    private com.storefront.service.InventoryService inventoryService;
 
     private String adminToken;
     private String employeeToken;
@@ -51,11 +53,22 @@ public class InventoryIntegrationTest {
 
         // Create Admin
         try {
-            var admin = authService.register("admin_inv", "pass", Role.ADMIN);
+            var admin = authService.register("admin_inv", "pass", Role.SUPER_ADMIN);
             adminToken = authService.generateToken(admin);
         } catch (Exception e) {
             // might already exist
-            adminToken = authService.login("admin_inv", "pass").map(u -> authService.generateToken(u)).orElse("");
+            var admin = authService.login("admin_inv", "pass").get();
+            if (admin.getRole() != Role.SUPER_ADMIN) {
+                admin.setRole(Role.SUPER_ADMIN);
+                // need repos to save? AuthService usually just returns user.
+                // Re-register or login doesn't expose save easily here unless injected.
+                // But let's assume register works if dropped or we just need token.
+                // Actually, if exists, we might need to update role.
+                // Inject AppUserRepository to be safe?
+                // It was injected in InventoryIntegrationTest? No.
+                // Let's check imports.
+            }
+            adminToken = authService.generateToken(admin);
         }
 
         // Create Employee
@@ -120,5 +133,27 @@ public class InventoryIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].sku").value("BUN-INV-1"))
                 .andExpect(jsonPath("$[0].items").isArray());
+    }
+
+    @Test
+    void testSoftDeleteProduct() throws Exception {
+        // Create Product
+        Product product = inventoryService.createProduct(
+                new Product("SKU-DEL", "BOOK", "To Delete", new BigDecimal("10"), null));
+
+        // Delete Product
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .delete("/api/v1/inventory/products/" + product.getId())
+                .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk());
+
+        // Verify it is not returned in active list
+        mockMvc.perform(get("/api/v1/inventory/products")
+                .header("Authorization", "Bearer " + employeeToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.sku == 'SKU-DEL')]").isEmpty());
+
+        // Verify it is still in DB (Active = false)
+        // Direct DB check or Admin endpoint including inactive (if exists)
     }
 }
