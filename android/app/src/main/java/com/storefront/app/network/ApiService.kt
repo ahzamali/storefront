@@ -43,4 +43,10 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Body payload: Map<String, Any>
     ): Any
+
+    @POST("/api/v1/inventory/products")
+    suspend fun createProduct(
+        @Header("Authorization") token: String,
+        @Body request: CreateProductRequest
+    ): Any
 }

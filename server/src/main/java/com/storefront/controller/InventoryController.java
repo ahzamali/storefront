@@ -22,7 +22,7 @@ public class InventoryController {
 
     @PostMapping("/products")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'STORE_ADMIN', 'ADMIN')")
-    public ResponseEntity<Product> createProduct(@RequestBody Product product) {
+    public ResponseEntity<Product> createProduct(@RequestBody @jakarta.validation.Valid Product product) {
         return ResponseEntity.ok(inventoryService.createProduct(product));
     }
 

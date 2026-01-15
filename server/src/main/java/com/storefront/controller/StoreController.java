@@ -44,7 +44,8 @@ public class StoreController {
 
     @PostMapping("/{id}/allocate")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'STORE_ADMIN', 'ADMIN')")
-    public ResponseEntity<?> allocate(@PathVariable Long id, @RequestBody AllocationRequestDTO request,
+    public ResponseEntity<?> allocate(@PathVariable Long id,
+            @RequestBody @jakarta.validation.Valid AllocationRequestDTO request,
             @AuthenticationPrincipal UserDetails userDetails) {
         AppUser user = userRepository.findByUsername(userDetails.getUsername())
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));

@@ -67,13 +67,18 @@ public class InventorySearchIntegrationTest {
         com.storefront.model.AppUser adminUser;
         String adminName = "inv_search_admin";
         if (appUserRepository.findByUsername(adminName).isEmpty()) {
-            adminUser = authService.register(adminName, "inv_pass", com.storefront.model.Role.ADMIN);
+            adminUser = authService.register(adminName, "inv_pass", com.storefront.model.Role.SUPER_ADMIN);
         } else {
             // If exists, force delete and recreate or just login?
             // Better to force recreate to ensure clean state or just login with known pass.
             // Assuming "inv_pass" is used.
             try {
                 adminUser = authService.login(adminName, "inv_pass").get();
+                // Ensure role is SUPER_ADMIN if reused
+                if (adminUser.getRole() != com.storefront.model.Role.SUPER_ADMIN) {
+                    adminUser.setRole(com.storefront.model.Role.SUPER_ADMIN);
+                    appUserRepository.save(adminUser);
+                }
             } catch (Exception e) {
                 // If login fails (wrong pass?), delete and recreate
                 Optional<com.storefront.model.AppUser> existing = appUserRepository.findByUsername(adminName);

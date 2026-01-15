@@ -97,14 +97,8 @@ docker-compose up -d
 ```
 Access the full app at **`http://localhost:8080`**.
 
-### 3. Production Transfer
-To deploy to a remote server (e.g., 192.168.211.175):
 
-```powershell
-.\transfer_script.ps1
-```
-
-### 4. Database Switching (H2 vs Postgres)
+### 3. Database Switching (H2 vs Postgres)
 The `docker-compose.yml` is configured for **H2 by default**. To switch to **PostgreSQL**:
 1. Open `docker-compose.yml`.
 2. Comment out the `volumes` section (H2 data).

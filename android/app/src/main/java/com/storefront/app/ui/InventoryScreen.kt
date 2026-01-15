@@ -131,67 +131,133 @@ fun InventoryScreen(configManager: ConfigManager) {
         ProductDetailDialog(product = it, onDismiss = { selectedProduct = null })
     }
 
-    // Add Product by ISBN Dialog
+    // Add Product UI State
     if (showAddDialog) {
+        var addMode by remember { mutableStateOf("SELECTION") } // SELECTION, ISBN, MANUAL
+        
+        // Manual Form State
+        var manualType by remember { mutableStateOf("BOOK") } // BOOK, STATIONERY
+        var manualSku by remember { mutableStateOf("") }
+        var manualName by remember { mutableStateOf("") }
+        var manualPrice by remember { mutableStateOf("") }
+        var manualBrand by remember { mutableStateOf("") } // For Stationery
+        var manualAuthor by remember { mutableStateOf("") } // For Book
+        
+        // ISBN Form State
         var isbn by remember { mutableStateOf("") }
         var quantity by remember { mutableStateOf("1") }
         var price by remember { mutableStateOf("") }
+        
         var isAdding by remember { mutableStateOf(false) }
 
+        // Dialog Content
         AlertDialog(
             onDismissRequest = { showAddDialog = false },
-            title = { Text("Add by ISBN") },
+            title = { 
+                Text(when(addMode) {
+                    "SELECTION" -> "Add Product"
+                    "ISBN" -> "Add by ISBN"
+                    else -> "Add Manually"
+                })
+            },
             text = {
-                Column {
-                    Text("Enter ISBN to fetch details automatically.", style = MaterialTheme.typography.bodySmall)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = isbn, 
-                        onValueChange = { isbn = it }, 
-                        label = { Text("ISBN / SKU") },
-                        singleLine = true
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = quantity, 
-                        onValueChange = { quantity = it }, 
-                        label = { Text("Quantity") },
-                        singleLine = true
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = price, 
-                        onValueChange = { price = it }, 
-                        label = { Text("Price (Required)") },
-                        singleLine = true
-                    )
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    when (addMode) {
+                        "SELECTION" -> {
+                            Button(
+                                onClick = { addMode = "ISBN" },
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text("Scan / Enter ISBN") }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Button(
+                                onClick = { addMode = "MANUAL" },
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text("Add Manually") }
+                        }
+                        "ISBN" -> {
+                            Text("Enter ISBN to fetch details automatically.", style = MaterialTheme.typography.bodySmall)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(value = isbn, onValueChange = { isbn = it }, label = { Text("ISBN / SKU") }, singleLine = true)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(value = quantity, onValueChange = { quantity = it }, label = { Text("Quantity") }, singleLine = true)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(value = price, onValueChange = { price = it }, label = { Text("Price (Required)") }, singleLine = true)
+                        }
+                        "MANUAL" -> {
+                             // Type Selector
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                RadioButton(selected = manualType == "BOOK", onClick = { manualType = "BOOK" })
+                                Text("Book")
+                                Spacer(modifier = Modifier.width(16.dp))
+                                RadioButton(selected = manualType == "STATIONERY", onClick = { manualType = "STATIONERY" })
+                                Text("Stationery")
+                            }
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(value = manualSku, onValueChange = { manualSku = it }, label = { Text("SKU *") }, singleLine = true)
+                            OutlinedTextField(value = manualName, onValueChange = { manualName = it }, label = { Text("Name *") }, singleLine = true)
+                            OutlinedTextField(value = manualPrice, onValueChange = { manualPrice = it }, label = { Text("Price *") }, singleLine = true)
+                            
+                            if (manualType == "BOOK") {
+                                OutlinedTextField(value = manualAuthor, onValueChange = { manualAuthor = it }, label = { Text("Author") }, singleLine = true)
+                            } else {
+                                OutlinedTextField(value = manualBrand, onValueChange = { manualBrand = it }, label = { Text("Brand") }, singleLine = true)
+                            }
+                        }
+                    }
                 }
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        scope.launch {
-                            isAdding = true
-                            try {
-                                val api = NetworkModule.createApiService(configManager.baseUrl!!)
-                                val payload = mapOf(
-                                    "isbn" to isbn,
-                                    "quantity" to (quantity.toIntOrNull() ?: 1),
-                                    "price" to (price.toDoubleOrNull() ?: 0.0)
-                                )
-                                api.ingestIsbn("Bearer ${configManager.authToken}", payload)
-                                showAddDialog = false
-                                loadInventory(selectedStore?.id) // Refresh
-                            } catch (e: Exception) {
-                                e.printStackTrace() // In real app show error toast
-                            } finally {
-                                isAdding = false
+                if (addMode != "SELECTION") {
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                isAdding = true
+                                try {
+                                    val api = NetworkModule.createApiService(configManager.baseUrl!!)
+                                    val token = "Bearer ${configManager.authToken}"
+                                    
+                                    if (addMode == "ISBN") {
+                                        val payload = mapOf(
+                                            "isbn" to isbn,
+                                            "quantity" to (quantity.toIntOrNull() ?: 1),
+                                            "price" to (price.toDoubleOrNull() ?: 0.0)
+                                        )
+                                        api.ingestIsbn(token, payload)
+                                    } else {
+                                        // Manual Creation
+                                        val attributes = com.storefront.app.model.ProductAttributes(
+                                            type = if (manualType == "BOOK") "BOOK" else "PENCIL",
+                                            author = if (manualType == "BOOK") manualAuthor else null,
+                                            brand = if (manualType == "STATIONERY") manualBrand else null
+                                            // Add other fields as needed
+                                        )
+                                        val request = com.storefront.app.model.CreateProductRequest(
+                                            sku = manualSku,
+                                            name = manualName,
+                                            basePrice = manualPrice.toDoubleOrNull() ?: 0.0,
+                                            type = manualType,
+                                            attributes = attributes
+                                        )
+                                        api.createProduct(token, request)
+                                    }
+                                    
+                                    showAddDialog = false
+                                    loadInventory(selectedStore?.id)
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                } finally {
+                                    isAdding = false
+                                }
                             }
-                        }
-                    },
-                    enabled = !isAdding && isbn.isNotBlank() && price.isNotBlank()
-                ) {
-                    if (isAdding) CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White) else Text("Add Product")
+                        },
+                        enabled = !isAdding && (
+                            (addMode == "ISBN" && isbn.isNotBlank() && price.isNotBlank()) ||
+                            (addMode == "MANUAL" && manualSku.isNotBlank() && manualName.isNotBlank() && manualPrice.isNotBlank())
+                        )
+                    ) {
+                        if (isAdding) CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White) else Text("Add Product")
+                    }
                 }
             },
             dismissButton = {

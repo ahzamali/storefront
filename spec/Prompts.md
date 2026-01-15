@@ -77,3 +77,40 @@ In the inventory page les add a few more functionality
 1. There shold be an edit option, preferably inline in the table 
 2. There should be option to delete inventory as well, make sure that if an inventory is used anywhere else i.e. in order it gets hidden but not deleted. 
 3. The stock count update can happen inline as well we do not need a separate form for that 
+
+### Docker build and run
+Lets create a single docker bundle for testing whch I would deploy on a production server,  
+We should have a single docker for backend and frontend compoent to start with 
+
+### Android App
+The table looks good, the cart does not build up intuitively. Can we add the following
+1. Show inventory in the bottom half of the screen
+2. Enable Search on the inventory 
+3. Once the item is added to the cart show what is added to the cart
+4. lets add a checkout and confirmation page to the cart
+5. The prices show show up in INR
+
+
+In the mobile app lets add a functionality to add inventory item usng the ISBN bar code 
+1. In the inventory view of super_admin, when they click on add button, there should be option to enter the ISBN, upon entering the ISBN the details about the book should get populated 
+2. the user should be required to enter the price and the quantity
+3. Check for public API to access the book details given ISBN
+
+### Inventory Creation UI
+In the inventory creation UI lets make some changes. 
+1. Remove the Add Stock (to HQ) section 
+2. Re-Arrange the Add New Product to span horizontally, such that the book details section comes horizontally 
+3. make the ISBN first field
+4. Once the ISBN is entered search on the internet to get the detail s of the book like the title, author, publisher etc. 
+5. populate these details in the appropriate field
+6. use ISBN as SKU, when ISBN is available 
+
+
+We need to enable users to change thier passwords also update store assignments
+Please add important RBAC restriction, only SUPER_ADMIN can change password and assign stores. The users can only change their passwords.
+Change password should ask for password twice
+
+The UI is not reponsive the left navigation bar covers the full screen on mobile browser how can we fix that
+
+
+We need to design test suit for the complete server functionality, such that if any new functionality is added it does not break existing functionality. The test suit should also cover the security aspect of the system.

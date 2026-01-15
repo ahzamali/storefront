@@ -57,6 +57,13 @@ public class StoreService {
         Store targetStore = storeRepository.findById(targetStoreId)
                 .orElseThrow(() -> new IllegalArgumentException("Target Store not found"));
 
+        // Security Check
+        if (currentUser.getStores().stream().noneMatch(s -> s.getId().equals(targetStoreId))
+                && !currentUser.getRole().name().equals("SUPER_ADMIN")) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "User does not have access to this store");
+        }
+
         for (StockAllocationDTO item : request.getItems()) {
             Optional<Product> productOpt = productRepository.findBySku(item.getSku());
 

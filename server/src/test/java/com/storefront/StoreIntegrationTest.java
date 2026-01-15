@@ -68,10 +68,14 @@ public class StoreIntegrationTest {
                 // Create Admin
                 // Create Admin
                 if (appUserRepository.findByUsername("admin_store").isPresent()) {
-                        adminToken = authService.login("admin_store", "pass").map(u -> authService.generateToken(u))
-                                        .orElse("");
+                        var user = appUserRepository.findByUsername("admin_store").get();
+                        if (user.getRole() != Role.SUPER_ADMIN) {
+                                user.setRole(Role.SUPER_ADMIN);
+                                appUserRepository.save(user);
+                        }
+                        adminToken = authService.generateToken(user);
                 } else {
-                        var admin = authService.register("admin_store", "pass", Role.ADMIN);
+                        var admin = authService.register("admin_store", "pass", Role.SUPER_ADMIN);
                         adminToken = authService.generateToken(admin);
                 }
 
@@ -190,5 +194,28 @@ public class StoreIntegrationTest {
                                 stockLevelRepository.findByStoreIdAndProductId(masterStore.getId(), penId).get()
                                                 .getQuantity());
                 assertEquals(0, stockLevelRepository.findByStoreIdAndProductId(storeId, bookId).get().getQuantity());
+        }
+
+        @Test
+        void testStoreAccessBoundary() throws Exception {
+                // 1. Create Store A and Store B
+                Store storeA = storeRepository.save(new Store("Store A", Store.StoreType.VIRTUAL, null));
+                Store storeB = storeRepository.save(new Store("Store B", Store.StoreType.VIRTUAL, null));
+
+                // 2. Create User assigned to Store A
+                AppUser userA = authService.register("user_a", "pass", Role.STORE_ADMIN);
+                userA.addStore(storeA);
+                appUserRepository.save(userA);
+                String tokenA = authService.generateToken(userA);
+
+                // 3. User A tries to access Store B (e.g., allocate request)
+                AllocationRequestDTO request = new AllocationRequestDTO();
+                request.setItems(Collections.emptyList());
+
+                mockMvc.perform(post("/api/v1/stores/" + storeB.getId() + "/allocate")
+                                .header("Authorization", "Bearer " + tokenA)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                                .andExpect(status().isForbidden());
         }
 }
