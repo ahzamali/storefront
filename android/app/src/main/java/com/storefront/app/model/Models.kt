@@ -7,7 +7,16 @@ data class ProductAttributes(
     val brand: String? = null,
     val hardness: String? = null,
     val material: String? = null,
-    val type: String? = null
+    val type: String? = null, // JSON Discriminator: BOOK, PENCIL
+    val eraserIncluded: Boolean? = null
+)
+
+data class CreateProductRequest(
+    val sku: String,
+    val name: String,
+    val basePrice: Double,
+    val type: String, // Top level type: BOOK, STATIONERY
+    val attributes: ProductAttributes
 )
 
 data class ProductStockDTO(

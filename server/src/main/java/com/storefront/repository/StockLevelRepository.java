@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 public interface StockLevelRepository
         extends JpaRepository<StockLevel, StockLevelKey>, JpaSpecificationExecutor<StockLevel> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
     Optional<StockLevel> findByStoreIdAndProductId(Long storeId, Long productId);
 
     List<StockLevel> findByStoreId(Long storeId);

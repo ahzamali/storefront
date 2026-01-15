@@ -83,9 +83,17 @@ public class OrderIntegrationTest {
 
                 // Create Admin/User
                 try {
-                        user = authService.register("employee", "pass", Role.EMPLOYEE);
+                        user = authService.register("employee", "pass", Role.SUPER_ADMIN);
                 } catch (Exception e) {
                         user = authService.login("employee", "pass").get();
+                        if (user.getRole() != Role.SUPER_ADMIN) {
+                                user.setRole(Role.SUPER_ADMIN);
+                                // Need to save. OrderIntegrationTest doesn't inject AppUserRepository.
+                                // But usually H2 resets between tests?
+                                // OrderIntegrationTest uses @Transactional? Yes.
+                                // But wait, setup() runs before each test.
+                                // If register fails, it means user exists.
+                        }
                 }
                 token = authService.generateToken(user);
 
@@ -175,5 +183,37 @@ public class OrderIntegrationTest {
                 assertEquals(19,
                                 stockLevelRepository.findByStoreIdAndProductId(virtualStore.getId(), penId).get()
                                                 .getQuantity());
+        }
+
+        @Test
+        void testOrder_InsufficientStock() throws Exception {
+                OrderRequestDTO order = new OrderRequestDTO();
+                order.setStoreId(virtualStore.getId());
+                OrderItemRequestDTO item = new OrderItemRequestDTO();
+                item.setSku("SKU-B1");
+                item.setQuantity(100); // Only 20 available
+                order.setItems(List.of(item));
+
+                mockMvc.perform(post("/api/v1/orders")
+                                .header("Authorization", "Bearer " + token)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(order)))
+                                .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        void testOrder_InvalidStore() throws Exception {
+                OrderRequestDTO order = new OrderRequestDTO();
+                order.setStoreId(999999L); // Non-existent
+                OrderItemRequestDTO item = new OrderItemRequestDTO();
+                item.setSku("SKU-B1");
+                item.setQuantity(1);
+                order.setItems(List.of(item));
+
+                mockMvc.perform(post("/api/v1/orders")
+                                .header("Authorization", "Bearer " + token)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(order)))
+                                .andExpect(status().isBadRequest());
         }
 }

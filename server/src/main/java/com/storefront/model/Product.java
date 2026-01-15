@@ -21,9 +21,12 @@ public class Product {
     private String type; // Could be an enum, keeping String for now as per schema 'BOOK', 'STATIONERY'
 
     @Column(nullable = false)
+    @jakarta.validation.constraints.NotBlank(message = "Name is required")
     private String name;
 
     @Column(name = "base_price", nullable = false)
+    @jakarta.validation.constraints.NotNull(message = "Price is required")
+    @jakarta.validation.constraints.Min(value = 0, message = "Price must be positive")
     private BigDecimal basePrice;
 
     @Column(name = "is_active", nullable = false)

@@ -63,6 +63,15 @@ public class AuthIntegrationTest {
         }
 
         @Test
+        void testLoginFailure_InvalidCredentials() throws Exception {
+                mockMvc.perform(post("/api/v1/auth/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(
+                                                Map.of("username", "non_existent", "password", "wrong"))))
+                                .andExpect(status().isUnauthorized());
+        }
+
+        @Test
         void testDeleteUserFlow() throws Exception {
                 // Login SuperAdmin
                 var superAdmin = authService.login("superadmin", "password")

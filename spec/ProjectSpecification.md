@@ -59,3 +59,6 @@ The system consists of three main components:
 -   **Sales Reporting**: Aggregated reports from Virtual Store sales (Advanced analytics).
 -   **Multi-tenant Isolation**: Stronger data isolation between different tenant stores.
 -   **Offline Sync**: Enhanced offline capabilities for the mobile app.
+-   **SSO Integration**: Enable Single Sign-On (SSO) authentication for users.
+-   **Product Images**: Ability to upload and display images for products.
+
