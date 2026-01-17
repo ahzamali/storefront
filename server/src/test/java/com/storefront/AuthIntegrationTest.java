@@ -63,6 +63,16 @@ public class AuthIntegrationTest {
         }
 
         @Test
+        void testTokenExpiry() throws Exception {
+                // Simulate expired/invalid token
+                String expiredToken = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0dXNlciIsImV4cCI6MTUxNjIzOTAyMn0.invalid_signature";
+
+                mockMvc.perform(get("/api/v1/auth/users")
+                                .header("Authorization", "Bearer " + expiredToken))
+                                .andExpect(status().isForbidden());
+        }
+
+        @Test
         void testLoginFailure_InvalidCredentials() throws Exception {
                 mockMvc.perform(post("/api/v1/auth/login")
                                 .contentType(MediaType.APPLICATION_JSON)
