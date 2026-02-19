@@ -1,12 +1,18 @@
 package com.storefront.dto;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 
 public class OrderRequestDTO {
+    @NotNull(message = "Store ID is required")
     private Long storeId;
     private String customerName;
     private String customerPhone;
     private java.math.BigDecimal discount;
+    @NotEmpty(message = "Order must contain at least one item")
+    @Valid
     private List<OrderItemRequestDTO> items;
 
     public Long getStoreId() {

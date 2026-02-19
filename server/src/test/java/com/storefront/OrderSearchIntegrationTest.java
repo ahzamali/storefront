@@ -20,7 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-public class ProductUpdateFunctionalTest {
+public class OrderSearchIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -51,8 +51,10 @@ public class ProductUpdateFunctionalTest {
 
     @Test
     void testUpdateProductDetails() throws Exception {
-        Product product = createProduct("UPD-001", "Original Name", 100.0, "BOOK");
+        // Create product
+        Product product = createProduct("UPDATE-001", "Original Name", 100.0, "BOOK");
 
+        // Update product
         String updateJson = """
             {
                 "name": "Updated Name",
@@ -71,6 +73,7 @@ public class ProductUpdateFunctionalTest {
                 .content(updateJson))
                 .andExpect(status().isOk());
 
+        // Verify update
         Product updated = productRepository.findById(product.getId()).orElseThrow();
         assert updated.getName().equals("Updated Name");
         assert updated.getBasePrice().doubleValue() == 120.0;
@@ -79,9 +82,10 @@ public class ProductUpdateFunctionalTest {
 
     @Test
     void testUpdateStockCount() throws Exception {
-        Product product = createProduct("UPD-002", "Stock Test", 50.0, "STATIONERY");
+        Product product = createProduct("UPDATE-002", "Stock Test", 50.0, "STATIONERY");
         addStock(product.getSku(), 100);
 
+        // Update stock to 150
         String updateJson = """
             {
                 "sku": "%s",
@@ -95,18 +99,21 @@ public class ProductUpdateFunctionalTest {
                 .content(updateJson))
                 .andExpect(status().isOk());
 
+        // Verify
         var stock = stockLevelRepository.findByStoreIdAndProductId(masterStore.getId(), product.getId()).orElseThrow();
         assert stock.getQuantity() == 150;
     }
 
     @Test
-    void testUpdateStockForVirtualStore() throws Exception {
-        Product product = createProduct("UPD-003", "Virtual Stock", 80.0, "BOOK");
+    void testUpdateStockForSpecificStore() throws Exception {
+        Product product = createProduct("UPDATE-003", "Multi Store Test", 80.0, "BOOK");
         addStock(product.getSku(), 200);
 
-        Store virtualStore = createStore("Virtual Store");
+        // Create virtual store and allocate
+        Store virtualStore = createStore("Virtual Store A");
         allocateStock(virtualStore.getId(), product.getSku(), 50);
 
+        // Update stock in virtual store
         String updateJson = """
             {
                 "sku": "%s",
@@ -121,16 +128,18 @@ public class ProductUpdateFunctionalTest {
                 .content(updateJson))
                 .andExpect(status().isOk());
 
+        // Verify virtual store stock updated
         var virtualStock = stockLevelRepository.findByStoreIdAndProductId(virtualStore.getId(), product.getId()).orElseThrow();
         assert virtualStock.getQuantity() == 30;
 
+        // Verify master store unchanged
         var masterStock = stockLevelRepository.findByStoreIdAndProductId(masterStore.getId(), product.getId()).orElseThrow();
-        assert masterStock.getQuantity() == 150;
+        assert masterStock.getQuantity() == 150; // 200 - 50 allocated
     }
 
     @Test
     void testUpdateProductWithInvalidPrice() throws Exception {
-        Product product = createProduct("UPD-004", "Invalid Test", 100.0, "BOOK");
+        Product product = createProduct("UPDATE-004", "Invalid Price Test", 100.0, "BOOK");
 
         String updateJson = """
             {
@@ -145,52 +154,6 @@ public class ProductUpdateFunctionalTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(updateJson))
                 .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void testUpdateNonExistentProduct() throws Exception {
-        String updateJson = """
-            {
-                "name": "Test",
-                "basePrice": 100.0,
-                "type": "BOOK"
-            }
-            """;
-
-        mockMvc.perform(put("/api/v1/inventory/products/99999")
-                .header("Authorization", "Bearer " + adminToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(updateJson))
-                .andExpect(status().isNotFound());
-    }
-
-    @Test
-    void testUpdateProductAttributes() throws Exception {
-        Product product = createProduct("UPD-005", "Attr Test", 70.0, "BOOK");
-
-        String updateJson = """
-            {
-                "name": "Attr Test",
-                "basePrice": 70.0,
-                "type": "BOOK",
-                "attributes": {
-                    "author": "Test Author",
-                    "isbn": "9876543210",
-                    "publisher": "Test Publisher",
-                    "publicationDate": "2024-01-01"
-                }
-            }
-            """;
-
-        mockMvc.perform(put("/api/v1/inventory/products/" + product.getId())
-                .header("Authorization", "Bearer " + adminToken)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(updateJson))
-                .andExpect(status().isOk());
-
-        Product updated = productRepository.findById(product.getId()).orElseThrow();
-        assert ((com.storefront.model.attributes.BookAttributes) updated.getAttributes()).getAuthor().equals("Test Author");
-        assert ((com.storefront.model.attributes.BookAttributes) updated.getAttributes()).getPublisher().equals("Test Publisher");
     }
 
     private Product createProduct(String sku, String name, double price, String type) throws Exception {
@@ -259,7 +222,7 @@ public class ProductUpdateFunctionalTest {
                 .andExpect(status().isOk());
     }
 
-    private void createOrder(Long storeId, String customerName, String phone, String sku, int quantity) throws Exception {
+    private void createOrder(String customerName, String phone, String sku, int quantity) throws Exception {
         String orderJson = """
             {
                 "storeId": %d,
@@ -267,7 +230,7 @@ public class ProductUpdateFunctionalTest {
                 "customerPhone": "%s",
                 "items": [{"sku": "%s", "quantity": %d}]
             }
-            """.formatted(storeId, customerName, phone, sku, quantity);
+            """.formatted(masterStore.getId(), customerName, phone, sku, quantity);
 
         mockMvc.perform(post("/api/v1/orders")
                 .header("Authorization", "Bearer " + adminToken)

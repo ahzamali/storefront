@@ -1,9 +1,11 @@
 package com.storefront;
 
 import com.storefront.model.AppUser;
+import com.storefront.model.Product;
 import com.storefront.model.Role;
 import com.storefront.model.Store;
 import com.storefront.repository.AppUserRepository;
+import com.storefront.repository.ProductRepository;
 import com.storefront.repository.StoreRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,6 +33,9 @@ public class UserManagementFunctionalTest {
 
     @Autowired
     private StoreRepository storeRepository;
+
+    @Autowired
+    private ProductRepository productRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -201,7 +206,7 @@ public class UserManagementFunctionalTest {
         return storeRepository.findById(storeId).orElseThrow();
     }
 
-    private Product createProduct(String sku, String name, double price, String type) throws Exception {
+    private com.storefront.model.Product createProduct(String sku, String name, double price, String type) throws Exception {
         String json = """
             {
                 "sku": "%s",

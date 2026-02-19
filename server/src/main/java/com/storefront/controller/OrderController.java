@@ -24,7 +24,7 @@ public class OrderController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createOrder(@RequestBody OrderRequestDTO request,
+    public ResponseEntity<?> createOrder(@jakarta.validation.Valid @RequestBody OrderRequestDTO request,
             @AuthenticationPrincipal UserDetails userDetails) {
         AppUser user = userRepository.findByUsername(userDetails.getUsername())
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));

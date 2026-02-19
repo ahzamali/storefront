@@ -65,7 +65,7 @@ public class AuthController {
 
     @PostMapping("/register")
     @org.springframework.security.access.prepost.PreAuthorize("hasAnyAuthority('ROLE_ADMIN', 'ROLE_SUPER_ADMIN', 'ROLE_STORE_ADMIN')")
-    public ResponseEntity<?> register(@RequestBody com.storefront.dto.RegisterRequestDTO body) {
+    public ResponseEntity<?> register(@jakarta.validation.Valid @RequestBody com.storefront.dto.RegisterRequestDTO body) {
         try {
             Long storeId = body.getStoreId();
             Role role = Role.valueOf(body.getRole());
@@ -77,7 +77,7 @@ public class AuthController {
                     storeId);
             return ResponseEntity.ok(user);
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Username already exists"));
+            return ResponseEntity.status(409).body(Map.of("error", "Username already exists"));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", "Invalid Role or Data"));
         } catch (Exception e) {

@@ -39,4 +39,21 @@ public class GlobalExceptionHandler {
             org.springframework.security.access.AccessDeniedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", ex.getMessage()));
     }
+
+    @ResponseStatus(HttpStatus.CONFLICT)
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, String>> handleDuplicateKey(
+            org.springframework.dao.DataIntegrityViolationException ex) {
+        String message = ex.getMessage();
+        String error = "Resource already exists";
+        
+        if (message != null && message.contains("USERNAME")) {
+            error = "Username already exists";
+        } else if (message != null && message.contains("SKU")) {
+            error = "SKU already exists";
+        }
+        
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("error", error));
+    }
 }
