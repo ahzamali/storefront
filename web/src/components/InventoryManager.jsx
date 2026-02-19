@@ -7,9 +7,7 @@ import ProductDetailModal from './ProductDetailModal';
 import ReconciliationReportModal from './modals/ReconciliationReportModal';
 import BundleCreationModal from './modals/BundleCreationModal';
 import TransferStockModal from './modals/TransferStockModal';
-import ReconciliationReportModal from './modals/ReconciliationReportModal';
-import BundleCreationModal from './modals/BundleCreationModal';
-import TransferStockModal from './modals/TransferStockModal';
+
 
 const InventoryManager = () => {
     const [products, setProducts] = useState([]);
