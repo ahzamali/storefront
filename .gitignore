@@ -65,8 +65,11 @@ out/
 
 # Logs
 *.log
+*.txt
 logs/
 app.log
+test_output*.txt
+*_log.txt
 
 # Temporary files
 *.tmp
