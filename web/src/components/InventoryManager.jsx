@@ -4,6 +4,12 @@ import { getInventoryView, addProduct, updateProduct, deleteProduct, updateStock
 
 import useInventoryFilter from '../hooks/useInventoryFilter';
 import ProductDetailModal from './ProductDetailModal';
+import ReconciliationReportModal from './modals/ReconciliationReportModal';
+import BundleCreationModal from './modals/BundleCreationModal';
+import TransferStockModal from './modals/TransferStockModal';
+import ReconciliationReportModal from './modals/ReconciliationReportModal';
+import BundleCreationModal from './modals/BundleCreationModal';
+import TransferStockModal from './modals/TransferStockModal';
 
 const InventoryManager = () => {
     const [products, setProducts] = useState([]);
@@ -333,193 +339,32 @@ const InventoryManager = () => {
 
             {message && <p style={{ padding: '10px', background: '#dff9fb', color: '#27ae60', borderRadius: '5px' }}>{message}</p>}
 
-            {/* Reconciliation Report Modal */}
-            {reconciliationReport && (
-                <div style={{
-                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                    background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100
-                }}>
-                    <div style={{ background: 'white', padding: '2rem', borderRadius: '8px', width: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #eee', paddingBottom: '10px' }}>
-                            <h3 style={{ margin: 0 }}>Reconciliation Report: {reconciliationReport.storeName}</h3>
-                            <button onClick={() => setReconciliationReport(null)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', cursor: 'pointer' }}>×</button>
-                        </div>
+            <ReconciliationReportModal 
+                report={reconciliationReport}
+                onClose={() => setReconciliationReport(null)}
+            />
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
-                            <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px' }}>
-                                <h4 style={{ margin: '0 0 10px 0', color: '#2c3e50' }}>Financials</h4>
-                                <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#27ae60' }}>
-                                    Total Revenue: ₹{reconciliationReport.totalRevenue}
-                                </div>
-                                <div>Items Sold: {reconciliationReport.totalItemsSold}</div>
-                            </div>
-                            <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px' }}>
-                                <h4 style={{ margin: '0 0 10px 0', color: '#2c3e50' }}>Assigned Administrators</h4>
-                                <ul style={{ paddingLeft: '20px', margin: 0 }}>
-                                    {reconciliationReport.assignedAdmins.map(admin => (
-                                        <li key={admin}>{admin}</li>
-                                    ))}
-                                </ul>
-                            </div>
-                        </div>
+            <BundleCreationModal
+                isOpen={isBundleModalOpen}
+                selectedItems={selectedItems}
+                products={filteredProducts}
+                newBundle={newBundle}
+                setNewBundle={setNewBundle}
+                onSubmit={handleCreateBundle}
+                onClose={() => setIsBundleModalOpen(false)}
+            />
 
-                        <h4 style={{ borderBottom: '1px solid #eee', paddingBottom: '5px' }}>Items Sold</h4>
-                        <table style={{ width: '100%', marginBottom: '20px', fontSize: '0.9rem' }}>
-                            <thead>
-                                <tr style={{ textAlign: 'left', background: '#eee' }}>
-                                    <th style={{ padding: '8px' }}>SKU</th>
-                                    <th style={{ padding: '8px' }}>Name</th>
-                                    <th style={{ padding: '8px' }}>Qty</th>
-                                    <th style={{ padding: '8px' }}>Total</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {reconciliationReport.soldItems.map(item => (
-                                    <tr key={item.sku} style={{ borderBottom: '1px solid #eee' }}>
-                                        <td style={{ padding: '8px' }}>{item.sku}</td>
-                                        <td style={{ padding: '8px' }}>{item.name}</td>
-                                        <td style={{ padding: '8px' }}>{item.quantity}</td>
-                                        <td style={{ padding: '8px' }}>₹{item.total}</td>
-                                    </tr>
-                                ))}
-                                {reconciliationReport.soldItems.length === 0 && <tr><td colSpan="4" style={{ padding: '10px', textAlign: 'center' }}>No items sold</td></tr>}
-                            </tbody>
-                        </table>
-
-                        <h4 style={{ borderBottom: '1px solid #eee', paddingBottom: '5px' }}>Stock Returned to HQ</h4>
-                        <table style={{ width: '100%', marginBottom: '20px', fontSize: '0.9rem' }}>
-                            <thead>
-                                <tr style={{ textAlign: 'left', background: '#eee' }}>
-                                    <th style={{ padding: '8px' }}>SKU</th>
-                                    <th style={{ padding: '8px' }}>Name</th>
-                                    <th style={{ padding: '8px' }}>Qty</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {reconciliationReport.returnedItems.map(item => (
-                                    <tr key={item.sku} style={{ borderBottom: '1px solid #eee' }}>
-                                        <td style={{ padding: '8px' }}>{item.sku}</td>
-                                        <td style={{ padding: '8px' }}>{item.name}</td>
-                                        <td style={{ padding: '8px' }}>{item.quantity}</td>
-                                    </tr>
-                                ))}
-                                {reconciliationReport.returnedItems.length === 0 && <tr><td colSpan="3" style={{ padding: '10px', textAlign: 'center' }}>No items returned</td></tr>}
-                            </tbody>
-                        </table>
-
-                        <button
-                            onClick={() => {
-                                setReconciliationReport(null);
-                                window.print();
-                            }}
-                            style={{ width: '100%', padding: '10px', background: '#2c3e50', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                        >
-                            Close & Print
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* Bundle Creation Modal */}
-            {isBundleModalOpen && (
-                <div style={{
-                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                    background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
-                }}>
-                    <div style={{ background: 'white', padding: '2rem', borderRadius: '8px', width: '400px' }}>
-                        <h3>Create Bundle</h3>
-                        <p>{selectedItems.size} items selected</p>
-
-                        {/* bundling logic helper */}
-                        {(() => {
-                            const selectedProductObjects = filteredProducts.filter(p => selectedItems.has(p.sku));
-                            const totalPrice = selectedProductObjects.reduce((sum, p) => sum + (parseFloat(p.basePrice || p.price) || 0), 0);
-
-                            return (
-                                <div style={{ marginBottom: '10px', fontSize: '0.9rem', color: '#555' }}>
-                                    <strong>Total Item Price: </strong> ₹{totalPrice.toFixed(2)}
-                                </div>
-                            );
-                        })()}
-
-                        <form onSubmit={handleCreateBundle} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            <input type="text" placeholder="Bundle Name" value={newBundle.name} onChange={e => setNewBundle({ ...newBundle, name: e.target.value })} required style={{ padding: '8px', border: '1px solid #ddd' }} />
-                            <input type="text" placeholder="Description" value={newBundle.description} onChange={e => setNewBundle({ ...newBundle, description: e.target.value })} style={{ padding: '8px', border: '1px solid #ddd' }} />
-
-                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                <div style={{ flex: 1 }}>
-                                    <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: '4px' }}>Discount (%)</label>
-                                    <input
-                                        type="number"
-                                        min="0" max="100"
-                                        placeholder="0%"
-                                        onChange={e => {
-                                            const discount = parseFloat(e.target.value) || 0;
-                                            const selectedProductObjects = filteredProducts.filter(p => selectedItems.has(p.sku));
-                                            const totalPrice = selectedProductObjects.reduce((sum, p) => sum + (parseFloat(p.basePrice || p.price) || 0), 0);
-                                            const discountedPrice = totalPrice * (1 - discount / 100);
-                                            setNewBundle({ ...newBundle, price: discountedPrice.toFixed(2) });
-                                        }}
-                                        style={{ width: '100%', padding: '8px', border: '1px solid #ddd' }}
-                                    />
-                                </div>
-                                <div style={{ flex: 1 }}>
-                                    <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: '4px' }}>Final Price</label>
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        placeholder="Price"
-                                        value={newBundle.price}
-                                        onChange={e => setNewBundle({ ...newBundle, price: e.target.value })}
-                                        required
-                                        style={{ width: '100%', padding: '8px', border: '1px solid #ddd' }}
-                                    />
-                                </div>
-                            </div>
-
-                            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                                <button type="submit" style={{ flex: 1, height: '40px', padding: '0 10px', background: '#2ecc71', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Create</button>
-                                <button type="button" onClick={() => setIsBundleModalOpen(false)} style={{ flex: 1, height: '40px', padding: '0 10px', background: '#95a5a6', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Cancel</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* Transfer Modal (HQ -> Store) */}
-            {isTransferModalOpen && (
-                <div style={{
-                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-                    background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
-                }}>
-                    <div style={{ background: 'white', padding: '2rem', borderRadius: '8px', width: '400px' }}>
-                        <h3>Transfer Stock to Store</h3>
-                        <p>{selectedItems.size} items selected</p>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            <select
-                                value={transferTargetStore}
-                                onChange={e => setTransferTargetStore(e.target.value)}
-                                style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
-                            >
-                                <option value="">Select Target Store...</option>
-                                {stores.filter(s => s.type !== 'MASTER').map(s => (
-                                    <option key={s.id} value={s.id}>{s.name}</option>
-                                ))}
-                            </select>
-                            <input
-                                type="number" min="1" placeholder="Quantity per item"
-                                value={transferQty}
-                                onChange={e => setTransferQty(e.target.value)}
-                                style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
-                            />
-                            <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                                <button onClick={handleTransfer} style={{ flex: 1, height: '40px', padding: '0 10px', background: '#3498db', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Transfer</button>
-                                <button onClick={() => setIsTransferModalOpen(false)} style={{ flex: 1, height: '40px', padding: '0 10px', background: '#95a5a6', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Cancel</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <TransferStockModal
+                isOpen={isTransferModalOpen}
+                selectedItems={selectedItems}
+                stores={stores}
+                transferTargetStore={transferTargetStore}
+                setTransferTargetStore={setTransferTargetStore}
+                transferQty={transferQty}
+                setTransferQty={setTransferQty}
+                onTransfer={handleTransfer}
+                onClose={() => setIsTransferModalOpen(false)}
+            />
 
             {/* Product Detail Modal */}
             {viewProduct && (
