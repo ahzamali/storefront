@@ -1,22 +1,36 @@
 import axios from 'axios';
 
 export const getTargetHost = () => {
-    const saved = localStorage.getItem('targetHost');
-    const currentOrigin = (typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : '';
+    let saved = localStorage.getItem('targetHost');
+    if (saved) {
+        saved = saved.trim().replace(/\/+$/, '');
+    }
+
+    const currentOrigin = (typeof window !== 'undefined' && window.location?.origin) ? window.location.origin.replace(/\/+$/, '') : '';
     const isLocalhostOrigin = typeof window !== 'undefined' && (window.location?.hostname === 'localhost' || window.location?.hostname === '127.0.0.1');
 
     if (saved && saved.includes('localhost') && !isLocalhostOrigin && currentOrigin) {
         return currentOrigin;
     }
-    if (saved) return saved;
+    if (saved && saved !== '/') {
+        return saved;
+    }
     return currentOrigin || 'http://localhost:8080';
 };
 
 const api = axios.create();
 
 api.interceptors.request.use((config) => {
-    const host = getTargetHost();
-    config.baseURL = `${host}/api/v1`;
+    let host = getTargetHost();
+    if (host) {
+        host = host.trim().replace(/\/+$/, '');
+    }
+
+    if (!host || host === '/') {
+        config.baseURL = '/api/v1';
+    } else {
+        config.baseURL = `${host}/api/v1`;
+    }
 
     const token = localStorage.getItem('token');
     if (token) {
