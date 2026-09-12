@@ -11,7 +11,12 @@ const Login = ({ setToken }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        localStorage.setItem('targetHost', targetHost);
+        const cleanHost = targetHost ? targetHost.trim().replace(/\/+$/, '') : '';
+        if (cleanHost) {
+            localStorage.setItem('targetHost', cleanHost);
+        } else {
+            localStorage.removeItem('targetHost');
+        }
         try {
             const data = await login(username, password);
             localStorage.setItem('token', data.token); // Fix race condition for immediate API calls
