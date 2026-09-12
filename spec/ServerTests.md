@@ -50,24 +50,26 @@ This document defines the comprehensive test suite for the StoreFront server. It
 | Scenario | Steps | Expected Result |
 | :--- | :--- | :--- |
 | **Standard Order** | Buy 2 items from Virtual Store | `200 OK`, Stock reduced in Virtual Store |
-| **Bundle Order** | Buy 1 Bundle | Individual items reduced from Stock |
+| **Bundle Order** | Buy 1 Bundle | Individual items reduced from Stock and the items should expand and show individually in the order details |
 | **Insufficient Stock** | Buy more than available | `400 Bad Request` |
 | **Invalid Store** | Order from non-existent store | `404 Not Found` |
 
 ### 3.2 Reconciliation
 | Scenario | Steps | Expected Result |
 | :--- | :--- | :--- |
+| **Stock Check Balance and sale** | Check Daily Stock sale on virtual store | There should provide a summary of stocks sold and stocks remaining and total value of sale made |
 | **Stock Reconciliation** | Return unsold items from Virtual to Master | Virtual Stock = 0, Master Stock restored |
 | **Report Generation** | Trigger Reconciliation | JSON Report generated with sales figures |
 
 ## 4. Multi-Store Architecture
 **Goal**: Validate isolation and management of multiple virtual stores.
 
+
 ### 4.1 Store Management
 | Scenario | Steps | Expected Result |
 | :--- | :--- | :--- |
-| **Create Store** | Admin creates "Store X" | `200 OK`, Store created |
-| **Assign User** | Assign User U to Store X | User can manage Store X |
+| **Create Store** | Admin creates "Store X" | `200 OK`, Store created, create store should fail if a store admin is not assigned.  |
+| **Assign User** | Assign User U to Store X, this is additional user assignement to a store.  | User can manage Store X |
 | **Cross-Store Data**| User U (Store X) tries to view Store Y stock | `403 Forbidden` or Empty List |
 
 ## 5. System Resilience

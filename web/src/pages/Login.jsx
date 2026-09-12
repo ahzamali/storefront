@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { login } from '../services/api';
+import { login, getTargetHost } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 
 const Login = ({ setToken }) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
-    const [targetHost, setTargetHost] = useState(localStorage.getItem('targetHost') || 'http://localhost:8080');
+    const [targetHost, setTargetHost] = useState(getTargetHost());
     const [error, setError] = useState('');
     const navigate = useNavigate();
 
@@ -65,7 +65,7 @@ const Login = ({ setToken }) => {
                     />
                     <input
                         type="text"
-                        placeholder="Target Host (http://localhost:8080)"
+                        placeholder={`Target Host (e.g. ${targetHost || 'http://localhost:8080'})`}
                         value={targetHost}
                         onChange={(e) => setTargetHost(e.target.value)}
                         style={{ padding: '0.8rem', borderRadius: '5px', border: 'none', background: 'rgba(255,255,255,0.9)', color: 'black' }}
