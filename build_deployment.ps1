@@ -16,7 +16,7 @@ Copy-Item "web/dist/*" -Destination $staticDir -Recurse -Force
 
 Write-Host "3. Building Backend..." -ForegroundColor Cyan
 Set-Location "server"
-mvn clean package -DskipTests
+mvn package -DskipTests
 if ($LASTEXITCODE -ne 0) { Write-Error "Backend build failed"; exit 1 }
 Set-Location ".."
 

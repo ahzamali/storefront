@@ -1,9 +1,21 @@
 import axios from 'axios';
 
+export const getTargetHost = () => {
+    const saved = localStorage.getItem('targetHost');
+    const currentOrigin = (typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : '';
+    const isLocalhostOrigin = typeof window !== 'undefined' && (window.location?.hostname === 'localhost' || window.location?.hostname === '127.0.0.1');
+
+    if (saved && saved.includes('localhost') && !isLocalhostOrigin && currentOrigin) {
+        return currentOrigin;
+    }
+    if (saved) return saved;
+    return currentOrigin || 'http://localhost:8080';
+};
+
 const api = axios.create();
 
 api.interceptors.request.use((config) => {
-    const host = localStorage.getItem('targetHost') || 'http://localhost:8080';
+    const host = getTargetHost();
     config.baseURL = `${host}/api/v1`;
 
     const token = localStorage.getItem('token');
