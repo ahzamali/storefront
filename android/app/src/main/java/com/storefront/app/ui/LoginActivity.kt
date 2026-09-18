@@ -136,6 +136,11 @@ class LoginActivity : ComponentActivity() {
                 if (token != null) {
                     configManager.baseUrl = url 
                     configManager.authToken = token
+                    configManager.username = user
+                    configManager.userRole = response["role"] as? String
+                    val idVal = (response["userId"] as? Number)?.toLong()
+                    if (idVal != null) configManager.userId = idVal
+                    
                     Toast.makeText(this@LoginActivity, "Login Successful", Toast.LENGTH_SHORT).show()
                     
                     startActivity(Intent(this@LoginActivity, StoreSelectionActivity::class.java))

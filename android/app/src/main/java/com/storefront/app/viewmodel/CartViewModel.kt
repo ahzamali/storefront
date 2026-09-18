@@ -4,9 +4,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.storefront.app.ConfigManager
-import com.storefront.app.model.CreateOrderRequest
-import com.storefront.app.model.OrderItemRequest
-import com.storefront.app.model.ProductStockDTO
+import com.storefront.app.model.*
 import com.storefront.app.network.NetworkModule
 import kotlinx.coroutines.launch
 import java.math.BigDecimal
@@ -27,29 +25,42 @@ class CartViewModel : ViewModel() {
     private var _customerName: String? = null
     private var _customerPhone: String? = null
 
+    var lastCompletedOrder: OrderDTO? = null
+        private set
+
     val totalAmount: BigDecimal
         get() = _cartItems.fold(BigDecimal.ZERO) { acc, item -> 
             acc.add(item.price.multiply(BigDecimal(item.quantity))) 
         }
+
+    val customerName: String? get() = _customerName
+    val customerPhone: String? get() = _customerPhone
     
     fun setCustomer(name: String, phone: String) {
         _customerName = name.ifBlank { null }
         _customerPhone = phone.ifBlank { null }
     }
 
-    fun addToCart(product: ProductStockDTO, quantity: Int = 1) {
+    fun addToCart(product: ProductStockDTO, quantity: Int = 1, excludedSkus: List<String> = emptyList()) {
         val sku = product.sku
         val name = product.name
         val price = BigDecimal(product.price.toString())
         val isBundle = product.type == "BUNDLE"
         
-        val existingIndex = _cartItems.indexOfFirst { it.sku == sku && it.excludedSkus.isEmpty() }
+        val existingIndex = _cartItems.indexOfFirst { it.sku == sku && it.excludedSkus == excludedSkus }
         
         if (existingIndex != -1) {
             val existing = _cartItems[existingIndex]
             _cartItems[existingIndex] = existing.copy(quantity = existing.quantity + quantity)
         } else {
-            _cartItems.add(CartItem(sku, name, price, quantity, isBundle))
+            _cartItems.add(CartItem(sku, name, price, quantity, isBundle, excludedSkus))
+        }
+    }
+
+    fun incrementQuantity(item: CartItem) {
+        val index = _cartItems.indexOf(item)
+        if (index != -1) {
+            _cartItems[index] = item.copy(quantity = item.quantity + 1)
         }
     }
     
@@ -64,29 +75,31 @@ class CartViewModel : ViewModel() {
         }
     }
 
+    fun removeItem(item: CartItem) {
+        _cartItems.remove(item)
+    }
+
     fun clearCart() {
         _cartItems.clear()
         _customerName = null
         _customerPhone = null
     }
 
-    fun checkout(configManager: ConfigManager, onSuccess: () -> Unit, onError: (String) -> Unit) {
+    fun checkout(configManager: ConfigManager, onSuccess: (OrderDTO) -> Unit, onError: (String) -> Unit) {
         val baseUrl = configManager.baseUrl ?: return
         val token = configManager.authToken ?: return
         
         viewModelScope.launch {
             try {
                 val api = NetworkModule.createApiService(baseUrl)
-                
-                // Use selected store from config, or default to 1 (Master) if not set, or throw error
-                // Ideally login flow sets this.
-                val storeId = configManager.selectedStoreId ?: 1 
+                val storeId = configManager.selectedStoreId ?: 1L
                 
                 val itemsPayload = _cartItems.map { 
-                    OrderItemRequest(it.sku, it.quantity)
-                    // Note: Excluded Products not fully supported in simple request yet in this new DTO unless we add it
-                    // The backend OrderItemRequestDTO likely has excludedProductSkus.
-                    // For now, simplicity.
+                    OrderItemRequest(
+                        sku = it.sku, 
+                        quantity = it.quantity,
+                        excludedProductSkus = it.excludedSkus
+                    )
                 }
                 
                 val orderRequest = CreateOrderRequest(
@@ -96,9 +109,10 @@ class CartViewModel : ViewModel() {
                     items = itemsPayload
                 )
 
-                api.createOrder("Bearer $token", orderRequest)
+                val order = api.createOrder("Bearer $token", orderRequest)
+                lastCompletedOrder = order
                 clearCart()
-                onSuccess()
+                onSuccess(order)
             } catch (e: Exception) {
                 onError(e.message ?: "Checkout Failed")
             }
