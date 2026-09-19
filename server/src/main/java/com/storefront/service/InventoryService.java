@@ -107,6 +107,10 @@ public class InventoryService {
         }
 
         public Product ingestBook(String isbn, int quantity, Double manualPrice) {
+                return ingestBook(isbn, null, null, quantity, manualPrice);
+        }
+
+        public Product ingestBook(String isbn, String customName, String customAuthor, int quantity, Double manualPrice) {
                 Optional<Product> existing = productRepository.findBySku(isbn);
                 Product product;
 
@@ -118,25 +122,39 @@ public class InventoryService {
                                 productRepository.save(product);
                         }
                 } else {
-                        java.util.Map<String, Object> details = bookService.fetchBookDetails(isbn)
-                                        .orElseThrow(() -> new IllegalArgumentException(
-                                                        "Book not found for ISBN: " + isbn));
-
-                        String name = (String) details.get("title");
+                        String name = customName;
+                        String author = customAuthor;
+                        String publisher = null;
                         java.math.BigDecimal price;
 
-                        if (manualPrice != null) {
-                                price = java.math.BigDecimal.valueOf(manualPrice);
+                        if (name == null || name.trim().isEmpty()) {
+                                java.util.Map<String, Object> details = bookService.fetchBookDetails(isbn)
+                                                .orElseThrow(() -> new IllegalArgumentException(
+                                                                "Book not found for ISBN: " + isbn));
+                                name = (String) details.get("title");
+                                author = (String) details.get("authors");
+                                publisher = (String) details.get("publisher");
+
+                                if (manualPrice != null) {
+                                        price = java.math.BigDecimal.valueOf(manualPrice);
+                                } else {
+                                        price = (java.math.BigDecimal) details.get("price");
+                                        if (price == null)
+                                                price = java.math.BigDecimal.ZERO;
+                                }
                         } else {
-                                price = (java.math.BigDecimal) details.get("price");
-                                if (price == null)
+                                if (manualPrice != null) {
+                                        price = java.math.BigDecimal.valueOf(manualPrice);
+                                } else {
                                         price = java.math.BigDecimal.ZERO;
+                                }
                         }
 
                         // Create BookAttributes
                         com.storefront.model.attributes.BookAttributes attributes = new com.storefront.model.attributes.BookAttributes();
-                        attributes.setAuthor((String) details.get("authors"));
-                        attributes.setPublisher((String) details.get("publisher"));
+                        attributes.setIsbn(isbn);
+                        attributes.setAuthor(author);
+                        attributes.setPublisher(publisher);
 
                         product = new Product(isbn, "BOOK", name, price, attributes);
                         product = productRepository.save(product);

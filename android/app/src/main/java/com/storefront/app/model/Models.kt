@@ -55,8 +55,38 @@ data class BundleDTO(
 
 data class IngestIsbnRequest(
     val isbn: String,
+    val name: String? = null,
+    val author: String? = null,
     val quantity: Int = 1,
     val price: Double? = null
+)
+
+// Google Books API Models
+data class GoogleBooksResponse(
+    val totalItems: Int? = 0,
+    val items: List<GoogleBookItem>? = null
+)
+
+data class GoogleBookItem(
+    val volumeInfo: GoogleBookVolumeInfo? = null,
+    val saleInfo: GoogleBookSaleInfo? = null
+)
+
+data class GoogleBookVolumeInfo(
+    val title: String? = null,
+    val authors: List<String>? = null,
+    val publisher: String? = null,
+    val description: String? = null,
+    val pageCount: Int? = null
+)
+
+data class GoogleBookSaleInfo(
+    val listPrice: GoogleBookPrice? = null
+)
+
+data class GoogleBookPrice(
+    val amount: Double? = null,
+    val currencyCode: String? = null
 )
 
 data class AddStockRequest(
