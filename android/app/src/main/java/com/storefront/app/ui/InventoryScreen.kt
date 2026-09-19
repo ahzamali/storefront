@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -17,6 +18,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import com.storefront.app.ConfigManager
 import com.storefront.app.model.*
 import com.storefront.app.network.NetworkModule
@@ -476,7 +478,53 @@ fun AddProductOrBundleDialog(
                     }
 
                     "ISBN" -> {
-                        OutlinedTextField(value = isbn, onValueChange = { isbn = it }, label = { Text("ISBN (10 or 13 digits)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                        FilledTonalButton(
+                            onClick = {
+                                try {
+                                    val scanner = GmsBarcodeScanning.getClient(context)
+                                    scanner.startScan()
+                                        .addOnSuccessListener { barcode ->
+                                            barcode.rawValue?.let { scanned ->
+                                                isbn = scanned
+                                                Toast.makeText(context, "Scanned: $scanned", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                        .addOnFailureListener { e ->
+                                            Toast.makeText(context, "Scan cancelled/failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        }
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Scanner error: ${e.message}", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Scan Book Barcode with Camera")
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        OutlinedTextField(
+                            value = isbn, 
+                            onValueChange = { isbn = it }, 
+                            label = { Text("ISBN (10 or 13 digits)") }, 
+                            singleLine = true, 
+                            trailingIcon = {
+                                IconButton(onClick = {
+                                    try {
+                                        val scanner = GmsBarcodeScanning.getClient(context)
+                                        scanner.startScan()
+                                            .addOnSuccessListener { barcode ->
+                                                barcode.rawValue?.let { scanned ->
+                                                    isbn = scanned
+                                                }
+                                            }
+                                    } catch (e: Exception) {}
+                                }) {
+                                    Icon(Icons.Default.QrCodeScanner, contentDescription = "Scan")
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(value = quantity, onValueChange = { quantity = it }, label = { Text("Quantity") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                         Spacer(modifier = Modifier.height(8.dp))
