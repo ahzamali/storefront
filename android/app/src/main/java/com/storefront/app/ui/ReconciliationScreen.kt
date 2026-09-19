@@ -81,16 +81,30 @@ fun ReconciliationScreen(configManager: ConfigManager) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text("Store Reconciliation", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    Text("Audit daily sales & finalize store shift", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Reconciliation", 
+                        style = MaterialTheme.typography.titleLarge, 
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                    Text("Daily sales & shift audit", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                 }
-
+                Spacer(modifier = Modifier.width(8.dp))
                 var expanded by remember { mutableStateOf(false) }
                 Box {
-                    OutlinedButton(onClick = { expanded = true }) {
-                        Text(selectedStore?.name ?: virtualStores.firstOrNull()?.name ?: "Select Store")
-                    }
+                    AssistChip(
+                        onClick = { expanded = true },
+                        label = {
+                            Text(
+                                text = selectedStore?.name ?: virtualStores.firstOrNull()?.name ?: "Select Store",
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
+                        }
+                    )
                     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                         virtualStores.forEach { s ->
                             DropdownMenuItem(text = { Text(s.name) }, onClick = { selectedStore = s; expanded = false })

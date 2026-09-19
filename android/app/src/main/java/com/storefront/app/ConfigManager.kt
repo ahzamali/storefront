@@ -7,6 +7,7 @@ class ConfigManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("storefront_prefs", Context.MODE_PRIVATE)
 
     companion object {
+        const val DEFAULT_BASE_URL = "https://storefront.softchef.in"
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_AUTH_TOKEN = "auth_token"
         private const val KEY_USER_ROLE = "user_role"
@@ -16,13 +17,12 @@ class ConfigManager(context: Context) {
         private const val KEY_SELECTED_STORE_ID = "selected_store_id"
     }
 
-    var baseUrl: String?
-        get() = prefs.getString(KEY_BASE_URL, null)
+    var baseUrl: String
+        get() = prefs.getString(KEY_BASE_URL, null) ?: DEFAULT_BASE_URL
         set(value) {
-            prefs.edit().putString(KEY_BASE_URL, value).apply()
-            if (value != null) {
-                addServerToHistory(value)
-            }
+            val cleanUrl = value.trim().removeSuffix("/")
+            prefs.edit().putString(KEY_BASE_URL, cleanUrl).apply()
+            addServerToHistory(cleanUrl)
         }
 
     var authToken: String?
@@ -55,13 +55,19 @@ class ConfigManager(context: Context) {
         }
 
     val serverHistory: Set<String>
-        get() = prefs.getStringSet(KEY_SERVER_HISTORY, emptySet()) ?: emptySet()
+        get() {
+            val saved = prefs.getStringSet(KEY_SERVER_HISTORY, emptySet()) ?: emptySet()
+            return if (saved.isEmpty()) setOf(DEFAULT_BASE_URL) else saved
+        }
 
     private fun addServerToHistory(url: String) {
         val currentHistory = serverHistory.toMutableSet()
         currentHistory.add(url)
         prefs.edit().putStringSet(KEY_SERVER_HISTORY, currentHistory).apply()
     }
+
+    val isLoggedIn: Boolean
+        get() = !authToken.isNullOrBlank()
     
     fun clearAuth() {
         prefs.edit()

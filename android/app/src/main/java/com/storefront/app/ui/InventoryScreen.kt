@@ -96,15 +96,37 @@ fun InventoryScreen(configManager: ConfigManager) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text("Inventory Management", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Inventory", 
+                        style = MaterialTheme.typography.titleLarge, 
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
                     Text("Total Products: ${products.size}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                 }
+                Spacer(modifier = Modifier.width(8.dp))
                 var expanded by remember { mutableStateOf(false) }
                 Box {
-                    OutlinedButton(onClick = { expanded = true }) {
-                        Text(selectedStore?.name ?: "HQ (Master)")
-                    }
+                    AssistChip(
+                        onClick = { expanded = true },
+                        label = {
+                            Text(
+                                text = selectedStore?.name ?: "HQ (Master)",
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
+                        },
+                        trailingIcon = {
+                            Icon(
+                                Icons.Default.Add, 
+                                contentDescription = null, 
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    )
                     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                         DropdownMenuItem(text = { Text("HQ (Master Store)") }, onClick = { selectedStore = null; expanded = false })
                         stores.forEach { s ->

@@ -4,7 +4,9 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -15,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
@@ -31,6 +34,14 @@ class DashboardActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val configManager = ConfigManager(this)
+
+        if (!configManager.isLoggedIn) {
+            val intent = Intent(this, LoginActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            startActivity(intent)
+            finish()
+            return
+        }
 
         setContent {
             MaterialTheme {
@@ -64,7 +75,7 @@ fun DashboardScreen(configManager: ConfigManager) {
     fun refreshStores() {
         scope.launch {
             try {
-                val baseUrl = configManager.baseUrl ?: return@launch
+                val baseUrl = configManager.baseUrl
                 val token = "Bearer ${configManager.authToken}"
                 val api = NetworkModule.createApiService(baseUrl)
                 stores = api.getStores(token)
@@ -103,12 +114,20 @@ fun DashboardScreen(configManager: ConfigManager) {
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text("StoreFront", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            "Store: $currentStoreName • ${configManager.username ?: userRole}",
+                            text = "StoreFront", 
+                            fontWeight = FontWeight.Bold, 
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "Store: $currentStoreName • ${configManager.username ?: userRole}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray
+                            color = Color.Gray,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 },
@@ -130,22 +149,55 @@ fun DashboardScreen(configManager: ConfigManager) {
             )
         },
         bottomBar = {
-            NavigationBar {
-                navItems.forEach { item ->
-                    NavigationBarItem(
-                        icon = { Icon(item.icon, contentDescription = item.title) },
-                        label = { Text(item.title, style = MaterialTheme.typography.labelSmall) },
-                        selected = currentRoute == item.route,
-                        onClick = {
-                            if (currentRoute != item.route) {
-                                navController.navigate(item.route) {
-                                    popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
+            // Horizontal Scrollable Bottom Navigation Bar - Prevents character wrapping
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp,
+                shadowElevation = 8.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    navItems.forEach { item ->
+                        val isSelected = currentRoute == item.route
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = {
+                                if (currentRoute != item.route) {
+                                    navController.navigate(item.route) {
+                                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
                                 }
-                            }
-                        }
-                    )
+                            },
+                            label = {
+                                Text(
+                                    text = item.title,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = item.icon,
+                                    contentDescription = item.title,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                selectedLeadingIconColor = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        )
+                    }
                 }
             }
         }
@@ -164,7 +216,7 @@ fun DashboardScreen(configManager: ConfigManager) {
         }
     }
 
-    // Quick Store Switcher Dialog
+    // Store Switcher Dialog
     if (showStoreSwitcherDialog) {
         AlertDialog(
             onDismissRequest = { showStoreSwitcherDialog = false },
@@ -183,7 +235,11 @@ fun DashboardScreen(configManager: ConfigManager) {
                             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                             colors = if (configManager.selectedStoreId == s.id) ButtonDefaults.outlinedButtonColors(containerColor = MaterialTheme.colorScheme.primaryContainer) else ButtonDefaults.outlinedButtonColors()
                         ) {
-                            Text("${s.name} (${s.type})")
+                            Text(
+                                text = "${s.name} (${s.type})",
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
                 }
