@@ -5,8 +5,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
@@ -21,6 +25,7 @@ import androidx.compose.ui.window.Dialog
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import com.storefront.app.ConfigManager
 import com.storefront.app.model.*
+import com.storefront.app.network.GoogleBooksClient
 import com.storefront.app.network.NetworkModule
 import com.storefront.app.ui.components.ProductDetailDialog
 import kotlinx.coroutines.launch
@@ -426,7 +431,7 @@ fun AddProductOrBundleDialog(
     val context = LocalContext.current
     var isSubmitting by remember { mutableStateOf(false) }
 
-    // Manual / ISBN fields
+    // Manual / Common fields
     var isbn by remember { mutableStateOf("") }
     var sku by remember { mutableStateOf("") }
     var name by remember { mutableStateOf("") }
@@ -436,18 +441,76 @@ fun AddProductOrBundleDialog(
     var author by remember { mutableStateOf("") }
     var brand by remember { mutableStateOf("") }
 
+    // ISBN lookup state
+    var isLookingUpBook by remember { mutableStateOf(false) }
+    var bookFoundOnline by remember { mutableStateOf<Boolean?>(null) }
+    var lookupMessage by remember { mutableStateOf<String?>(null) }
+
     // Bundle fields
     var bundleSku by remember { mutableStateOf("") }
     var bundleName by remember { mutableStateOf("") }
     var bundlePrice by remember { mutableStateOf("") }
     val selectedProductSkus = remember { mutableStateListOf<String>() }
 
+    fun lookupBookDetails(rawIsbn: String) {
+        val clean = rawIsbn.trim().replace("-", "")
+        if (clean.isBlank()) {
+            Toast.makeText(context, "Please enter an ISBN first", Toast.LENGTH_SHORT).show()
+            return
+        }
+        scope.launch {
+            isLookingUpBook = true
+            lookupMessage = null
+            try {
+                // 1. Check local loaded products first
+                val localMatch = products.find { it.sku.replace("-", "").equals(clean, ignoreCase = true) }
+                if (localMatch != null) {
+                    name = localMatch.name
+                    author = localMatch.attributes?.author ?: ""
+                    if (localMatch.price > 0 && price.isBlank()) {
+                        price = localMatch.price.toString()
+                    }
+                    bookFoundOnline = true
+                    lookupMessage = "Book already exists in inventory."
+                    return@launch
+                }
+
+                // 2. Query Google Books API
+                val response = GoogleBooksClient.service.searchByIsbn("isbn:$clean")
+                val item = response.items?.firstOrNull()
+                if (item != null && item.volumeInfo != null) {
+                    val info = item.volumeInfo
+                    name = info.title ?: ""
+                    author = info.authors?.joinToString(", ") ?: ""
+                    val listPrice = item.saleInfo?.listPrice?.amount
+                    if (listPrice != null && listPrice > 0 && price.isBlank()) {
+                        price = listPrice.toString()
+                    }
+                    bookFoundOnline = true
+                    lookupMessage = "Found: ${info.title ?: "Book details"}"
+                } else {
+                    bookFoundOnline = false
+                    lookupMessage = "Book title not found online. Please enter book name manually."
+                }
+            } catch (e: Exception) {
+                bookFoundOnline = false
+                lookupMessage = "Could not fetch book details online. Please enter book name manually."
+            } finally {
+                isLookingUpBook = false
+            }
+        }
+    }
+
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            modifier = Modifier.fillMaxWidth().heightIn(max = 600.dp).padding(16.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(max = 620.dp).padding(8.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
+            Column(
+                modifier = Modifier
+                    .padding(20.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
                 Text(
                     when (mode) {
                         "CHOICE" -> "Add New Item"
@@ -487,6 +550,7 @@ fun AddProductOrBundleDialog(
                                             barcode.rawValue?.let { scanned ->
                                                 isbn = scanned
                                                 Toast.makeText(context, "Scanned: $scanned", Toast.LENGTH_SHORT).show()
+                                                lookupBookDetails(scanned)
                                             }
                                         }
                                         .addOnFailureListener { e ->
@@ -500,35 +564,122 @@ fun AddProductOrBundleDialog(
                         ) {
                             Icon(Icons.Default.QrCodeScanner, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Scan Book Barcode with Camera")
+                            Text("Scan Book Barcode")
                         }
+
                         Spacer(modifier = Modifier.height(10.dp))
+
                         OutlinedTextField(
                             value = isbn, 
-                            onValueChange = { isbn = it }, 
-                            label = { Text("ISBN (10 or 13 digits)") }, 
+                            onValueChange = { 
+                                isbn = it
+                                bookFoundOnline = null
+                                lookupMessage = null
+                            }, 
+                            label = { Text("ISBN (10 or 13 digits) *") }, 
                             singleLine = true, 
                             trailingIcon = {
-                                IconButton(onClick = {
-                                    try {
-                                        val scanner = GmsBarcodeScanning.getClient(context)
-                                        scanner.startScan()
-                                            .addOnSuccessListener { barcode ->
-                                                barcode.rawValue?.let { scanned ->
-                                                    isbn = scanned
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    IconButton(
+                                        onClick = { lookupBookDetails(isbn) },
+                                        enabled = !isLookingUpBook && isbn.isNotBlank()
+                                    ) {
+                                        Icon(Icons.Default.Search, contentDescription = "Lookup Book")
+                                    }
+                                    IconButton(onClick = {
+                                        try {
+                                            val scanner = GmsBarcodeScanning.getClient(context)
+                                            scanner.startScan()
+                                                .addOnSuccessListener { barcode ->
+                                                    barcode.rawValue?.let { scanned ->
+                                                        isbn = scanned
+                                                        lookupBookDetails(scanned)
+                                                    }
                                                 }
-                                            }
-                                    } catch (e: Exception) {}
-                                }) {
-                                    Icon(Icons.Default.QrCodeScanner, contentDescription = "Scan")
+                                        } catch (e: Exception) {}
+                                    }) {
+                                        Icon(Icons.Default.QrCodeScanner, contentDescription = "Scan")
+                                    }
                                 }
                             },
                             modifier = Modifier.fillMaxWidth()
                         )
+
+                        if (isLookingUpBook) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                            Text(
+                                "Searching book details...", 
+                                style = MaterialTheme.typography.bodySmall, 
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+
+                        lookupMessage?.let { msg ->
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Surface(
+                                color = if (bookFoundOnline == true) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) 
+                                        else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                                shape = MaterialTheme.shapes.small,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        if (bookFoundOnline == true) Icons.Default.CheckCircle else Icons.Default.Info,
+                                        contentDescription = null,
+                                        tint = if (bookFoundOnline == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        msg, 
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = if (bookFoundOnline == true) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                }
+                            }
+                        }
+
                         Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedTextField(value = quantity, onValueChange = { quantity = it }, label = { Text("Quantity") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(
+                            value = name, 
+                            onValueChange = { name = it }, 
+                            label = { Text("Book Title *") }, 
+                            placeholder = { Text(if (bookFoundOnline == false) "Enter book title manually" else "Book Title") },
+                            singleLine = true, 
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
                         Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedTextField(value = price, onValueChange = { price = it }, label = { Text("Price (₹)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                        OutlinedTextField(
+                            value = author, 
+                            onValueChange = { author = it }, 
+                            label = { Text("Author (Optional)") }, 
+                            singleLine = true, 
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = quantity, 
+                            onValueChange = { quantity = it }, 
+                            label = { Text("Quantity") }, 
+                            singleLine = true, 
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = price, 
+                            onValueChange = { price = it }, 
+                            label = { Text("Price (₹)") }, 
+                            singleLine = true, 
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
 
                     "MANUAL" -> {
@@ -589,7 +740,6 @@ fun AddProductOrBundleDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.weight(1f, fill = false))
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -606,11 +756,47 @@ fun AddProductOrBundleDialog(
 
                                         when (mode) {
                                             "ISBN" -> {
-                                                api.ingestIsbn(token, IngestIsbnRequest(
-                                                    isbn = isbn,
-                                                    quantity = quantity.toIntOrNull() ?: 1,
-                                                    price = price.toDoubleOrNull()
-                                                ))
+                                                val cleanIsbn = isbn.trim()
+                                                if (cleanIsbn.isBlank()) {
+                                                    Toast.makeText(context, "Please enter or scan an ISBN", Toast.LENGTH_SHORT).show()
+                                                    isSubmitting = false
+                                                    return@launch
+                                                }
+                                                if (name.isBlank()) {
+                                                    Toast.makeText(context, "Please enter a book name", Toast.LENGTH_SHORT).show()
+                                                    isSubmitting = false
+                                                    return@launch
+                                                }
+
+                                                val qty = quantity.toIntOrNull() ?: 1
+                                                val p = price.toDoubleOrNull()
+
+                                                try {
+                                                    api.ingestIsbn(token, IngestIsbnRequest(
+                                                        isbn = cleanIsbn,
+                                                        name = name.trim().ifBlank { null },
+                                                        author = author.trim().ifBlank { null },
+                                                        quantity = qty,
+                                                        price = p
+                                                    ))
+                                                } catch (e: Exception) {
+                                                    // Fallback to direct create product + add stock
+                                                    val attrs = ProductAttributes(
+                                                        type = "BOOK",
+                                                        isbn = cleanIsbn,
+                                                        author = author.trim().ifBlank { null }
+                                                    )
+                                                    api.createProduct(token, CreateProductRequest(
+                                                        sku = cleanIsbn,
+                                                        name = name.trim(),
+                                                        basePrice = p ?: 0.0,
+                                                        type = "BOOK",
+                                                        attributes = attrs
+                                                    ))
+                                                    if (qty > 0) {
+                                                        api.addStock(token, AddStockRequest(sku = cleanIsbn, quantity = qty))
+                                                    }
+                                                }
                                             }
                                             "MANUAL" -> {
                                                 val attrs = ProductAttributes(
