@@ -606,10 +606,10 @@ fun AddProductOrBundleDialog(
 
                                         when (mode) {
                                             "ISBN" -> {
-                                                api.ingestIsbn(token, mapOf(
-                                                    "isbn" to isbn,
-                                                    "quantity" to (quantity.toIntOrNull() ?: 1),
-                                                    "price" to (price.toDoubleOrNull() ?: 0.0)
+                                                api.ingestIsbn(token, IngestIsbnRequest(
+                                                    isbn = isbn,
+                                                    quantity = quantity.toIntOrNull() ?: 1,
+                                                    price = price.toDoubleOrNull()
                                                 ))
                                             }
                                             "MANUAL" -> {
