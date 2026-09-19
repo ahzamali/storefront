@@ -53,6 +53,12 @@ data class BundleDTO(
     val bundledProductSkus: List<String> = emptyList()
 )
 
+data class IngestIsbnRequest(
+    val isbn: String,
+    val quantity: Int = 1,
+    val price: Double? = null
+)
+
 data class AddStockRequest(
     val sku: String,
     val quantity: Int

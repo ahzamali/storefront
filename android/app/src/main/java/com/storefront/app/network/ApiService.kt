@@ -1,8 +1,10 @@
 package com.storefront.app.network
 
 import com.storefront.app.model.*
+import okhttp3.ResponseBody
 import retrofit2.http.*
 
+@JvmSuppressWildcards
 interface ApiService {
     @POST("/api/v1/auth/login")
     suspend fun login(@Body credentials: Map<String, String>): Map<String, Any>
@@ -28,7 +30,7 @@ interface ApiService {
     suspend fun deleteUser(
         @Header("Authorization") token: String, 
         @Path("id") id: Long
-    )
+    ): ResponseBody
 
     // Stores
     @GET("/api/v1/stores")
@@ -45,14 +47,14 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Path("id") id: Long,
         @Body request: AllocationRequestDTO
-    ): Any
+    ): ResponseBody
 
     @POST("/api/v1/stores/{id}/return")
     suspend fun returnStock(
         @Header("Authorization") token: String,
         @Path("id") id: Long,
         @Body request: AllocationRequestDTO
-    ): Any
+    ): ResponseBody
 
     @POST("/api/v1/stores/{id}/reconcile")
     suspend fun reconcileStore(
@@ -81,38 +83,38 @@ interface ApiService {
     suspend fun createProduct(
         @Header("Authorization") token: String,
         @Body request: CreateProductRequest
-    ): Any
+    ): ResponseBody
 
     @PUT("/api/v1/inventory/products/{id}")
     suspend fun updateProduct(
         @Header("Authorization") token: String,
         @Path("id") id: Long,
         @Body request: CreateProductRequest
-    ): Any
+    ): ResponseBody
 
     @DELETE("/api/v1/inventory/products/{id}")
     suspend fun deleteProduct(
         @Header("Authorization") token: String,
         @Path("id") id: Long
-    )
+    ): ResponseBody
 
     @POST("/api/v1/inventory/stock")
     suspend fun addStock(
         @Header("Authorization") token: String,
         @Body request: AddStockRequest
-    ): Any
+    ): ResponseBody
 
     @POST("/api/v1/inventory/bundles")
     suspend fun createBundle(
         @Header("Authorization") token: String,
         @Body request: BundleDTO
-    ): Any
+    ): ResponseBody
 
     @POST("/api/v1/inventory/ingest/isbn")
     suspend fun ingestIsbn(
         @Header("Authorization") token: String,
-        @Body payload: Map<String, Any>
-    ): Any
+        @Body payload: IngestIsbnRequest
+    ): ResponseBody
 
     // Orders
     @POST("/api/v1/orders")
@@ -133,5 +135,5 @@ interface ApiService {
     suspend fun getReconciliationReport(
         @Header("Authorization") token: String,
         @Query("storeId") storeId: Long? = null
-    ): Any
+    ): ResponseBody
 }
