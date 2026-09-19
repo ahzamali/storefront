@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import com.storefront.app.ConfigManager
 import com.storefront.app.model.OrderDTO
 import com.storefront.app.model.ProductStockDTO
@@ -106,6 +108,24 @@ fun PosScreen(configManager: ConfigManager, viewModel: CartViewModel) {
                     onValueChange = { searchQuery = it },
                     label = { Text("Search Inventory by Name or SKU") },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+                    trailingIcon = {
+                        IconButton(onClick = {
+                            try {
+                                val scanner = GmsBarcodeScanning.getClient(context)
+                                scanner.startScan()
+                                    .addOnSuccessListener { barcode ->
+                                        barcode.rawValue?.let { scanned ->
+                                            searchQuery = scanned
+                                            Toast.makeText(context, "Scanned: $scanned", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Scanner error: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        }) {
+                            Icon(Icons.Default.QrCodeScanner, contentDescription = "Scan Barcode")
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
