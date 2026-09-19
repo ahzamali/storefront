@@ -285,8 +285,8 @@ fun StockTransferDialog(
     onDismiss: () -> Unit,
     onSuccess: () -> Unit
 ) {
-    var selectedSku by remember { mutableStateOf(products.firstOrNull()?.sku ?: "") }
-    var quantity by remember { mutableStateOf("5") }
+    var selectedSku by remember(products) { mutableStateOf(products.firstOrNull()?.sku ?: "") }
+    var quantity by remember(targetStore.id, isAllocation) { mutableStateOf("5") }
     var isSubmitting by remember { mutableStateOf(false) }
     var expandedDropdown by remember { mutableStateOf(false) }
 
@@ -343,14 +343,22 @@ fun StockTransferDialog(
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = {
-                            val qty = quantity.toIntOrNull() ?: 0
-                            if (qty <= 0 || selectedSku.isBlank()) return@Button
+                            val activeSku = selectedSku.ifBlank { products.firstOrNull()?.sku ?: "" }
+                            if (activeSku.isBlank()) {
+                                Toast.makeText(context, "Please select a product", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            val qty = quantity.toIntOrNull() ?: 5
+                            if (qty <= 0) {
+                                Toast.makeText(context, "Please enter a valid quantity greater than 0", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
 
                             scope.launch {
                                 isSubmitting = true
                                 try {
                                     val api = NetworkModule.createApiService(configManager.baseUrl!!)
-                                    val req = AllocationRequestDTO(listOf(AllocationItemDTO(selectedSku, qty)))
+                                    val req = AllocationRequestDTO(listOf(AllocationItemDTO(activeSku, qty)))
                                     val token = "Bearer ${configManager.authToken}"
                                     
                                     if (isAllocation) {
@@ -368,7 +376,7 @@ fun StockTransferDialog(
                                 }
                             }
                         },
-                        enabled = !isSubmitting && selectedSku.isNotBlank()
+                        enabled = !isSubmitting
                     ) {
                         Text(if (isSubmitting) "Processing..." else if (isAllocation) "Allocate" else "Return")
                     }

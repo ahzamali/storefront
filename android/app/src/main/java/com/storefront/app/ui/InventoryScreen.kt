@@ -228,104 +228,27 @@ fun InventoryScreen(configManager: ConfigManager) {
 
     // Add Stock / Restock Dialog
     showRestockDialogFor?.let { product ->
-        var restockQuantity by remember { mutableStateOf("10") }
-        var isSaving by remember { mutableStateOf(false) }
-
-        AlertDialog(
-            onDismissRequest = { showRestockDialogFor = null },
-            title = { Text("Add Stock - ${product.name}") },
-            text = {
-                Column {
-                    Text("Current stock: ${product.quantity}", style = MaterialTheme.typography.bodyMedium)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = restockQuantity,
-                        onValueChange = { restockQuantity = it },
-                        label = { Text("Quantity to Add") },
-                        singleLine = true
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        val qty = restockQuantity.toIntOrNull() ?: 0
-                        if (qty > 0) {
-                            scope.launch {
-                                isSaving = true
-                                try {
-                                    val api = NetworkModule.createApiService(configManager.baseUrl!!)
-                                    api.addStock("Bearer ${configManager.authToken}", AddStockRequest(product.sku, qty))
-                                    Toast.makeText(context, "Stock added successfully!", Toast.LENGTH_SHORT).show()
-                                    showRestockDialogFor = null
-                                    loadInventory(selectedStore?.id)
-                                } catch (e: Exception) {
-                                    Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
-                                } finally {
-                                    isSaving = false
-                                }
-                            }
-                        }
-                    },
-                    enabled = !isSaving
-                ) {
-                    Text(if (isSaving) "Adding..." else "Add Stock")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRestockDialogFor = null }) { Text("Cancel") }
+        RestockDialog(
+            product = product,
+            configManager = configManager,
+            onDismiss = { showRestockDialogFor = null },
+            onStockAdded = {
+                showRestockDialogFor = null
+                loadInventory(selectedStore?.id)
             }
         )
     }
 
     // Edit Product Dialog
     showEditDialogFor?.let { product ->
-        var editName by remember { mutableStateOf(product.name) }
-        var editPrice by remember { mutableStateOf(product.price.toString()) }
-        var isSaving by remember { mutableStateOf(false) }
-
-        AlertDialog(
-            onDismissRequest = { showEditDialogFor = null },
-            title = { Text("Edit Product Details") },
-            text = {
-                Column {
-                    OutlinedTextField(value = editName, onValueChange = { editName = it }, label = { Text("Product Name") })
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(value = editPrice, onValueChange = { editPrice = it }, label = { Text("Price (₹)") })
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        scope.launch {
-                            isSaving = true
-                            try {
-                                val api = NetworkModule.createApiService(configManager.baseUrl!!)
-                                val req = CreateProductRequest(
-                                    sku = product.sku,
-                                    name = editName,
-                                    basePrice = editPrice.toDoubleOrNull() ?: product.price,
-                                    type = product.type,
-                                    attributes = product.attributes ?: ProductAttributes()
-                                )
-                                api.updateProduct("Bearer ${configManager.authToken}", product.id, req)
-                                Toast.makeText(context, "Updated successfully!", Toast.LENGTH_SHORT).show()
-                                showEditDialogFor = null
-                                loadInventory(selectedStore?.id)
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "Update failed: ${e.message}", Toast.LENGTH_SHORT).show()
-                            } finally {
-                                isSaving = false
-                            }
-                        }
-                    },
-                    enabled = !isSaving
-                ) {
-                    Text(if (isSaving) "Saving..." else "Save Changes")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showEditDialogFor = null }) { Text("Cancel") }
+        EditProductDialog(
+            product = product,
+            selectedStoreId = selectedStore?.id,
+            configManager = configManager,
+            onDismiss = { showEditDialogFor = null },
+            onProductUpdated = {
+                showEditDialogFor = null
+                loadInventory(selectedStore?.id)
             }
         )
     }
@@ -799,23 +722,61 @@ fun AddProductOrBundleDialog(
                                                 }
                                             }
                                             "MANUAL" -> {
+                                                val cleanSku = sku.trim()
+                                                val cleanName = name.trim()
+                                                if (cleanSku.isBlank()) {
+                                                    Toast.makeText(context, "Please enter a product SKU", Toast.LENGTH_SHORT).show()
+                                                    isSubmitting = false
+                                                    return@launch
+                                                }
+                                                if (cleanName.isBlank()) {
+                                                    Toast.makeText(context, "Please enter a product name", Toast.LENGTH_SHORT).show()
+                                                    isSubmitting = false
+                                                    return@launch
+                                                }
+
+                                                val initialPrice = price.toDoubleOrNull() ?: 0.0
+                                                val initialQty = quantity.toIntOrNull() ?: 1
                                                 val attrs = ProductAttributes(
                                                     type = if (itemType == "BOOK") "BOOK" else "PENCIL",
-                                                    author = if (itemType == "BOOK") author else null,
-                                                    brand = if (itemType == "STATIONERY") brand else null
+                                                    author = if (itemType == "BOOK") author.trim().ifBlank { null } else null,
+                                                    brand = if (itemType == "STATIONERY") brand.trim().ifBlank { null } else null
                                                 )
                                                 api.createProduct(token, CreateProductRequest(
-                                                    sku = sku,
-                                                    name = name,
-                                                    basePrice = price.toDoubleOrNull() ?: 0.0,
+                                                    sku = cleanSku,
+                                                    name = cleanName,
+                                                    basePrice = initialPrice,
                                                     type = itemType,
                                                     attributes = attrs
                                                 ))
+                                                if (initialQty > 0) {
+                                                    try {
+                                                        api.addStock(token, AddStockRequest(sku = cleanSku, quantity = initialQty))
+                                                    } catch (e: Exception) {}
+                                                }
                                             }
                                             "BUNDLE" -> {
+                                                val cleanSku = bundleSku.trim()
+                                                val cleanName = bundleName.trim()
+                                                if (cleanSku.isBlank()) {
+                                                    Toast.makeText(context, "Please enter a bundle SKU", Toast.LENGTH_SHORT).show()
+                                                    isSubmitting = false
+                                                    return@launch
+                                                }
+                                                if (cleanName.isBlank()) {
+                                                    Toast.makeText(context, "Please enter a bundle name", Toast.LENGTH_SHORT).show()
+                                                    isSubmitting = false
+                                                    return@launch
+                                                }
+                                                if (selectedProductSkus.isEmpty()) {
+                                                    Toast.makeText(context, "Please select at least one bundled product", Toast.LENGTH_SHORT).show()
+                                                    isSubmitting = false
+                                                    return@launch
+                                                }
+
                                                 api.createBundle(token, BundleDTO(
-                                                    sku = bundleSku,
-                                                    name = bundleName,
+                                                    sku = cleanSku,
+                                                    name = cleanName,
                                                     price = bundlePrice.toDoubleOrNull() ?: 0.0,
                                                     bundledProductSkus = selectedProductSkus.toList()
                                                 ))
@@ -839,4 +800,207 @@ fun AddProductOrBundleDialog(
             }
         }
     }
+}
+
+@Composable
+fun RestockDialog(
+    product: ProductStockDTO,
+    configManager: ConfigManager,
+    onDismiss: () -> Unit,
+    onStockAdded: () -> Unit
+) {
+    var restockQuantity by remember(product.id) { mutableStateOf("10") }
+    var isSaving by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add Stock - ${product.name}") },
+        text = {
+            Column {
+                Text("Current stock: ${product.quantity}", style = MaterialTheme.typography.bodyMedium)
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = restockQuantity,
+                    onValueChange = { restockQuantity = it },
+                    label = { Text("Quantity to Add") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val qty = restockQuantity.toIntOrNull() ?: 10
+                    if (qty <= 0) {
+                        Toast.makeText(context, "Please enter a valid quantity greater than 0", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+                    scope.launch {
+                        isSaving = true
+                        try {
+                            val api = NetworkModule.createApiService(configManager.baseUrl!!)
+                            api.addStock("Bearer ${configManager.authToken}", AddStockRequest(product.sku, qty))
+                            Toast.makeText(context, "Stock added successfully!", Toast.LENGTH_SHORT).show()
+                            onStockAdded()
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                        } finally {
+                            isSaving = false
+                        }
+                    }
+                },
+                enabled = !isSaving
+            ) {
+                Text(if (isSaving) "Adding..." else "Add Stock")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+@Composable
+fun EditProductDialog(
+    product: ProductStockDTO,
+    selectedStoreId: Long?,
+    configManager: ConfigManager,
+    onDismiss: () -> Unit,
+    onProductUpdated: () -> Unit
+) {
+    var editName by remember(product.id) { mutableStateOf(product.name) }
+    var editPrice by remember(product.id) { 
+        mutableStateOf(if (product.price > 0) product.price.toString() else "0") 
+    }
+    var editQuantity by remember(product.id) { mutableStateOf(product.quantity.toString()) }
+    var editAuthor by remember(product.id) { mutableStateOf(product.attributes?.author ?: "") }
+    var editBrand by remember(product.id) { mutableStateOf(product.attributes?.brand ?: "") }
+    var editIsbn by remember(product.id) { mutableStateOf(product.attributes?.isbn ?: "") }
+    var isSaving by remember { mutableStateOf(false) }
+
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit Product Details", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                OutlinedTextField(
+                    value = editName, 
+                    onValueChange = { editName = it }, 
+                    label = { Text("Product Name *") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = editPrice, 
+                    onValueChange = { editPrice = it }, 
+                    label = { Text("Price (₹) *") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (product.type != "BUNDLE") {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = editQuantity, 
+                        onValueChange = { editQuantity = it }, 
+                        label = { Text("Stock Quantity (Current: ${product.quantity})") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                if (product.type == "BOOK" || editAuthor.isNotBlank() || editIsbn.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = editAuthor, 
+                        onValueChange = { editAuthor = it }, 
+                        label = { Text("Author") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = editIsbn, 
+                        onValueChange = { editIsbn = it }, 
+                        label = { Text("ISBN") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else if (product.type == "STATIONERY" || editBrand.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = editBrand, 
+                        onValueChange = { editBrand = it }, 
+                        label = { Text("Brand") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val finalName = editName.trim().ifBlank { product.name }
+                    val finalPrice = editPrice.toDoubleOrNull() ?: product.price
+                    val finalQuantity = editQuantity.toIntOrNull() ?: product.quantity
+
+                    if (finalName.isBlank()) {
+                        Toast.makeText(context, "Product name cannot be empty", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+
+                    scope.launch {
+                        isSaving = true
+                        try {
+                            val api = NetworkModule.createApiService(configManager.baseUrl!!)
+                            val token = "Bearer ${configManager.authToken}"
+
+                            val updatedAttrs = (product.attributes ?: ProductAttributes()).copy(
+                                author = editAuthor.trim().ifBlank { product.attributes?.author },
+                                brand = editBrand.trim().ifBlank { product.attributes?.brand },
+                                isbn = editIsbn.trim().ifBlank { product.attributes?.isbn }
+                            )
+
+                            val req = CreateProductRequest(
+                                sku = product.sku,
+                                name = finalName,
+                                basePrice = finalPrice,
+                                type = product.type,
+                                attributes = updatedAttrs
+                            )
+                            api.updateProduct(token, product.id, req)
+
+                            // If stock quantity changed for non-bundle, update stock count
+                            if (product.type != "BUNDLE" && finalQuantity != product.quantity) {
+                                api.updateStockCount(token, UpdateStockRequest(
+                                    sku = product.sku,
+                                    quantity = finalQuantity,
+                                    storeId = selectedStoreId
+                                ))
+                            }
+
+                            Toast.makeText(context, "Updated successfully!", Toast.LENGTH_SHORT).show()
+                            onProductUpdated()
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Update failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                        } finally {
+                            isSaving = false
+                        }
+                    }
+                },
+                enabled = !isSaving
+            ) {
+                Text(if (isSaving) "Saving..." else "Save Changes")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
