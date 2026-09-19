@@ -271,10 +271,10 @@ fun EditUserDialog(
     onDismiss: () -> Unit,
     onSave: (UserUpdateDTO) -> Unit
 ) {
-    var newPassword by remember { mutableStateOf("") }
-    var selectedRole by remember { mutableStateOf(user.role.name) }
+    var newPassword by remember(user.id) { mutableStateOf("") }
+    var selectedRole by remember(user.id) { mutableStateOf(user.role.name) }
     var expandedRole by remember { mutableStateOf(false) }
-    val assignedStoreIds = remember { mutableStateListOf<Long>().apply { addAll(user.stores.map { it.id }) } }
+    val assignedStoreIds = remember(user.id) { mutableStateListOf<Long>().apply { addAll(user.stores.map { it.id }) } }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(modifier = Modifier.fillMaxWidth().heightIn(max = 550.dp).padding(16.dp)) {

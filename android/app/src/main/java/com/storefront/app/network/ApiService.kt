@@ -104,6 +104,12 @@ interface ApiService {
         @Body request: AddStockRequest
     ): ResponseBody
 
+    @PUT("/api/v1/inventory/stock")
+    suspend fun updateStockCount(
+        @Header("Authorization") token: String,
+        @Body request: UpdateStockRequest
+    ): ResponseBody
+
     @POST("/api/v1/inventory/bundles")
     suspend fun createBundle(
         @Header("Authorization") token: String,
