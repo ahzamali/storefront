@@ -74,12 +74,18 @@ fun StoreManagerScreen(configManager: ConfigManager) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text("Store Management", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    Text("Manage Virtual Stores & Stock Transfers", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Store Management", 
+                        style = MaterialTheme.typography.titleLarge, 
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                    Text("Virtual Stores & Transfers", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                 }
-                IconButton(onClick = { loadData() }) {
-                    Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                IconButton(onClick = { loadData() }, modifier = Modifier.size(36.dp)) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Refresh", modifier = Modifier.size(20.dp))
                 }
             }
 

@@ -5,11 +5,19 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
@@ -25,6 +33,18 @@ class LoginActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         configManager = ConfigManager(this)
 
+        // Session check: If already logged in, redirect directly to Dashboard
+        if (configManager.isLoggedIn) {
+            val destination = if (configManager.selectedStoreId != null) {
+                DashboardActivity::class.java
+            } else {
+                StoreSelectionActivity::class.java
+            }
+            startActivity(Intent(this, destination))
+            finish()
+            return
+        }
+
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -37,104 +57,151 @@ class LoginActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     fun LoginScreen() {
-        var serverUrl by remember { mutableStateOf(configManager.baseUrl ?: "http://10.0.2.2:8080") }
+        var serverUrl by remember { mutableStateOf(configManager.baseUrl) }
         var username by remember { mutableStateOf("") }
         var password by remember { mutableStateOf("") }
-        var expanded by remember { mutableStateOf(false) }
+        var showAdvancedSettings by remember { mutableStateOf(false) }
+        var expandedHistory by remember { mutableStateOf(false) }
         var historyList by remember { mutableStateOf(configManager.serverHistory.toList()) }
         var isLoading by remember { mutableStateOf(false) }
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(32.dp),
+                .padding(28.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(text = "StoreFront Login", style = MaterialTheme.typography.headlineMedium)
+            Text(
+                text = "StoreFront", 
+                style = MaterialTheme.typography.headlineLarge, 
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = "Point of Sale & Inventory Management", 
+                style = MaterialTheme.typography.bodyMedium, 
+                color = Color.Gray
+            )
             
             Spacer(modifier = Modifier.height(32.dp))
-
-            // Server URL with History Dropdown
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = !expanded }
-            ) {
-                OutlinedTextField(
-                    value = serverUrl,
-                    onValueChange = { serverUrl = it },
-                    label = { Text("Server URL") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                    modifier = Modifier.menuAnchor().fillMaxWidth()
-                )
-                ExposedDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
-                ) {
-                    historyList.forEach { url ->
-                        DropdownMenuItem(
-                            text = { Text(url) },
-                            onClick = {
-                                serverUrl = url
-                                expanded = false
-                            }
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = it },
                 label = { Text("Username") },
+                singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
                 label = { Text("Password") },
+                singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             Button(
                 onClick = { 
-                    if (serverUrl.isBlank()) {
-                         Toast.makeText(this@LoginActivity, "Please enter Server URL", Toast.LENGTH_SHORT).show()
-                         return@Button
+                    if (username.isBlank() || password.isBlank()) {
+                        Toast.makeText(this@LoginActivity, "Please enter username and password", Toast.LENGTH_SHORT).show()
+                        return@Button
                     }
+                    val urlToUse = serverUrl.ifBlank { ConfigManager.DEFAULT_BASE_URL }
                     isLoading = true
-                    performLogin(serverUrl, username, password) { isLoading = false }
+                    performLogin(urlToUse, username.trim(), password) { isLoading = false }
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(50.dp),
                 enabled = !isLoading
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
                 } else {
-                    Text("Login")
+                    Text("Log In", fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Expandable Advanced Server URL Settings
+            Row(
+                modifier = Modifier
+                    .clickable { showAdvancedSettings = !showAdvancedSettings }
+                    .padding(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Server Settings (${if (showAdvancedSettings) "Hide" else "Customize URL"})",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
+                Icon(
+                    imageVector = if (showAdvancedSettings) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = Color.Gray
+                )
+            }
+
+            AnimatedVisibility(visible = showAdvancedSettings) {
+                Column(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                    ExposedDropdownMenuBox(
+                        expanded = expandedHistory,
+                        onExpandedChange = { expandedHistory = !expandedHistory }
+                    ) {
+                        OutlinedTextField(
+                            value = serverUrl,
+                            onValueChange = { serverUrl = it },
+                            label = { Text("Server URL") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedHistory) },
+                            modifier = Modifier.menuAnchor().fillMaxWidth(),
+                            singleLine = true
+                        )
+                        ExposedDropdownMenu(
+                            expanded = expandedHistory,
+                            onDismissRequest = { expandedHistory = false }
+                        ) {
+                            historyList.forEach { url ->
+                                DropdownMenuItem(
+                                    text = { Text(url) },
+                                    onClick = {
+                                        serverUrl = url
+                                        expandedHistory = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    Text(
+                        text = "Default: ${ConfigManager.DEFAULT_BASE_URL}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(start = 4.dp, top = 2.dp)
+                    )
                 }
             }
         }
     }
 
     private fun performLogin(url: String, user: String, pass: String, onComplete: () -> Unit) {
+        val cleanUrl = url.trim().removeSuffix("/")
         lifecycleScope.launch {
             try {
-                val api = NetworkModule.createApiService(url)
+                val api = NetworkModule.createApiService(cleanUrl)
                 val response = api.login(mapOf("username" to user, "password" to pass))
                 
                 val token = response["token"] as? String 
                 
                 if (token != null) {
-                    configManager.baseUrl = url 
+                    configManager.baseUrl = cleanUrl
                     configManager.authToken = token
                     configManager.username = user
                     configManager.userRole = response["role"] as? String
@@ -146,11 +213,11 @@ class LoginActivity : ComponentActivity() {
                     startActivity(Intent(this@LoginActivity, StoreSelectionActivity::class.java))
                     finish()
                 } else {
-                    Toast.makeText(this@LoginActivity, "Login Failed: No Token", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@LoginActivity, "Login Failed: Invalid credentials", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                Toast.makeText(this@LoginActivity, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(this@LoginActivity, "Login Error: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
                 onComplete()
             }

@@ -76,21 +76,35 @@ fun OrdersScreen(configManager: ConfigManager) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text("Order History", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                    Text("Total Orders: ${orders.size}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Orders", 
+                        style = MaterialTheme.typography.titleLarge, 
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                    )
+                    Text("Total: ${orders.size}", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { loadOrders() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    IconButton(onClick = { loadOrders() }, modifier = Modifier.size(36.dp)) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh", modifier = Modifier.size(20.dp))
                     }
                     
                     var expanded by remember { mutableStateOf(false) }
                     Box {
-                        OutlinedButton(onClick = { expanded = true }) {
-                            Text(selectedStore?.name ?: "All Stores")
-                        }
+                        AssistChip(
+                            onClick = { expanded = true },
+                            label = {
+                                Text(
+                                    text = selectedStore?.name ?: "All Stores",
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                )
+                            }
+                        )
                         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                             DropdownMenuItem(text = { Text("All Stores") }, onClick = { selectedStore = null; expanded = false })
                             stores.forEach { s ->
