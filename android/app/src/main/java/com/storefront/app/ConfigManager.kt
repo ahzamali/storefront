@@ -7,7 +7,7 @@ class ConfigManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("storefront_prefs", Context.MODE_PRIVATE)
 
     companion object {
-        const val DEFAULT_BASE_URL = "http://10.0.2.2:8080"
+        val DEFAULT_BASE_URL: String = BuildConfig.DEFAULT_BASE_URL
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_AUTH_TOKEN = "auth_token"
         private const val KEY_USER_ROLE = "user_role"
