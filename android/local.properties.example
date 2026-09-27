@@ -3,4 +3,4 @@
 sdk.dir=C:\\Users\\<YourUser>\\AppData\\Local\\Android\\Sdk
 
 # Specify your custom backend server URL (optional, defaults to http://10.0.2.2:8080 if omitted):
-STOREFRONT_BASE_URL=http://10.0.2.2:8080
+STOREFRONT_BASE_URL=https://api.yourdomain.com
